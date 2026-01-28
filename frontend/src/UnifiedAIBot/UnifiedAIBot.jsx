@@ -56,8 +56,18 @@ export default function UnifiedAIBot() {
   const setInput = (val) => setInputs(prev => ({ ...prev, [mode]: val }));
 
   const sendMessage = async (text) => {
-    if (!text.trim() || isLoading) return;
-    const userMsg = { role: "user", content: text, time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) };
+    const cleanText = text.trim();
+    if (!cleanText) {
+      alert("Input cannot be empty.");
+      return;
+    }
+    if (cleanText.length > 5000) {
+      alert("Input cannot exceed 5000 characters.");
+      return;
+    }
+    if (isLoading) return;
+
+    const userMsg = { role: "user", content: cleanText, time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) };
     
     setMessages(prev => ({ ...prev, [mode]: [...prev[mode], userMsg] }));
     setInput("");
@@ -65,10 +75,10 @@ export default function UnifiedAIBot() {
 
     try {
       let endpoint = "http://localhost:5000/api/chat";
-      let payload = { prompt: text };
+      let payload = { prompt: cleanText };
       
       if (mode === "stock") {
-        payload.prompt = text + " Focus heavily on stock markets, trading, and fund advising.";
+        payload.prompt = cleanText + " Focus heavily on stock markets, trading, and fund advising.";
       } else {
         endpoint = "http://localhost:5000/api/scam-detect";
       }
@@ -78,7 +88,12 @@ export default function UnifiedAIBot() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-      if (!res.ok) throw new Error("Network Error");
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || `Server returned status ${res.status}`);
+      }
+      
       const data = await res.json();
       
       const botMsg = {
@@ -88,12 +103,12 @@ export default function UnifiedAIBot() {
       };
       
       setMessages(prev => ({ ...prev, [mode]: [...prev[mode], botMsg] }));
-    } catch {
+    } catch (err) {
       setMessages(prev => ({
         ...prev, 
         [mode]: [...prev[mode], { 
           role: "bot", 
-          content: "⚠️ Could not reach the AI engine. Ensure the backend is running on `localhost:5000`.", 
+          content: `⚠️ Error: ${err.message}. Ensure the backend is running on \`localhost:5000\`.`, 
           time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) 
         }]
       }));
