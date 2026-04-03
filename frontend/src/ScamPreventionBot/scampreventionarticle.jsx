@@ -31,8 +31,8 @@ export default function ScamEducationBlog() {
     card: isDarkMode ? "bg-blue-800" : "bg-white",
     cardBorder: isDarkMode ? "border-blue-700" : "border-blue-200",
     highlight: isDarkMode ? "bg-blue-700 text-blue-100" : "bg-blue-100 text-blue-700",
-    button: isDarkMode ? "bg-blue-600 hover:bg-blue-500 text-white" : "bg-blue-200 hover:bg-blue-300 text-blue-800",
-    primaryButton: isDarkMode ? "bg-blue-500 hover:bg-blue-400 text-white" : "bg-blue-400 hover:bg-blue-500 text-white",
+    button: isDarkMode ? "bg-blue-600 hover:bg-blue-500 text-foreground" : "bg-blue-200 hover:bg-blue-300 text-blue-800",
+    primaryButton: isDarkMode ? "bg-blue-500 hover:bg-blue-400 text-foreground" : "bg-blue-400 hover:bg-blue-500 text-foreground",
   };
 
   return (
@@ -160,7 +160,7 @@ export default function ScamEducationBlog() {
             {[{ action: "Act Quickly", source: "FTC", steps: ["Contact your bank if financial info was shared", "Report gift card payments to the issuer", "Dispute credit card charges"], icon: "⚡" }, { action: "Report the Scam", source: "AARP", steps: ["FTC: ReportFraud.ftc.gov or 1-877-382-4357", "AARP Helpline: 1-877-908-3360", "IdentityTheft.gov for ID theft", "Local police"], icon: "📢" }, { action: "Protect Your Identity", source: "FTC", steps: ["Change affected passwords", "Add a fraud alert to credit reports", "Consider a credit freeze", "Monitor statements"], icon: "🔒" }, { action: "Seek Support", source: "AARP", steps: ["Talk to a loved one", "Contact your Area Agency on Aging", "Consider counseling if needed"], icon: "🤝" }].map((item, index) => (
               <div key={index} className={`${isDarkMode ? "bg-blue-700" : "bg-blue-50"} rounded-lg p-5 transition-colors duration-300`}>
                 <h3 className={`${fontSize === "normal" ? "text-xl" : fontSize === "large" ? "text-2xl" : "text-3xl"} font-bold ${theme.headings} mb-2 flex items-center`}>
-                  <span className={`mr-3 w-10 h-10 flex items-center justify-center ${isDarkMode ? "bg-blue-600" : "bg-blue-700"} text-white rounded-full`}>{item.icon}</span>
+                  <span className={`mr-3 w-10 h-10 flex items-center justify-center ${isDarkMode ? "bg-blue-600" : "bg-blue-700"} text-foreground rounded-full`}>{item.icon}</span>
                   {item.action}
                   <span className={`ml-2 px-2 py-1 ${theme.highlight} text-sm rounded-full`}>{item.source}</span>
                 </h3>

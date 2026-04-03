@@ -1,5 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { motion } from 'framer-motion';
+import { Loader2, Sparkles, Info } from 'lucide-react';
 
 const API_URL = "http://127.0.0.1:8000";
 const FUND_ANALYZER_API = "https://hackit-fin-tech-backend.vercel.app/api/fundAnalyzer";
@@ -9,12 +11,11 @@ export default function AssetPredictionTool() {
   const [assetName, setAssetName] = useState('');
   const [interestRate, setInterestRate] = useState('');
   const [inflationRate, setInflationRate] = useState('');
-  const [forecastYears, setForecastYears] = useState('2'); 
+  const [forecastYears, setForecastYears] = useState('2');
   const [prediction, setPrediction] = useState(null);
   const [fundAnalysis, setFundAnalysis] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
-
   const resultsRef = useRef(null);
 
   const assetOptions = {
@@ -22,352 +23,201 @@ export default function AssetPredictionTool() {
     Cryptocurrency: ['BTC-USD - Bitcoin', 'ETH-USD - Ethereum'],
     Commodity: ['GC=F - Gold', 'CL=F - Oil'],
     Bond: ['^TNX - Treasury Bond', 'LQD - Corporate Bond'],
-    'Real Estate': ['VNQ - REIT']
+    'Real Estate': ['VNQ - REIT'],
   };
-
   const USD_TO_INR = 83.50;
 
   useEffect(() => {
-    if (prediction && resultsRef.current) {
-      resultsRef.current.scrollIntoView({ behavior: 'smooth' });
-    }
+    if (prediction && resultsRef.current) resultsRef.current.scrollIntoView({ behavior: 'smooth' });
   }, [prediction]);
 
   const generatePrediction = async () => {
-    if (!assetType || !assetName || !interestRate || !inflationRate || !forecastYears) {
-      alert('Please fill all fields');
-      return;
-    }
-
-    setIsLoading(true);
-    setError(null);
-
-    const assetSymbol = assetName.split(' - ')[0]; // e.g., "AAPL" from "AAPL - Apple"
-    
-    const requestPayload = {
-      asset_type: assetType,
-      asset_name: assetSymbol,
-      interest_rate: parseFloat(interestRate) || 0,
-      inflation_rate: parseFloat(inflationRate) || 0,
-      forecast_years: parseInt(forecastYears) || 2,
-    };
-
+    if (!assetType || !assetName || !interestRate || !inflationRate || !forecastYears) { alert('Please fill all fields'); return; }
+    setIsLoading(true); setError(null);
+    const assetSymbol = assetName.split(' - ')[0];
+    const requestPayload = { asset_type: assetType, asset_name: assetSymbol, interest_rate: parseFloat(interestRate) || 0, inflation_rate: parseFloat(inflationRate) || 0, forecast_years: parseInt(forecastYears) || 2 };
     try {
-      // First, get the prediction data
-      const predictionResponse = await fetch(`${API_URL}/predict`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(requestPayload),
-      });
-
-      if (!predictionResponse.ok) {
-        const errorData = await predictionResponse.json().catch(() => null);
-        throw new Error(errorData?.error || `Error: ${predictionResponse.status}`);
-      }
-
-      const predictionData = await predictionResponse.json();
-      console.log('Full Backend Response:', predictionData);
-
-      // Extract current_price using the asset symbol
-      const currentPriceUSD = Number(predictionData.current_price[assetSymbol]) || 0;
-      const predictedPriceKey = `predicted_price_${forecastYears}_years`;
-      const predictedPriceUSD = Number(predictionData[predictedPriceKey]) || 0;
-
-      const currentPriceINR = currentPriceUSD * USD_TO_INR;
-      const predictedPriceINR = predictedPriceUSD * USD_TO_INR;
-
-      setPrediction({
-        asset: assetName,
-        currentPrice: currentPriceINR,
-        predictedPrice: predictedPriceINR,
-        interestRate: Number(predictionData.interest_rate) || 0,
-        inflationRate: Number(predictionData.inflation_rate) || 0,
-        growthApplied: predictionData.growth || '0%',
-        forecastYears: parseInt(predictionData.forecast_years) || parseInt(forecastYears),
-      });
-
-      // Next, get the fund analysis data
-      const fundAnalysisResponse = await fetch(FUND_ANALYZER_API, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(requestPayload),
-      });
-
-      if (!fundAnalysisResponse.ok) {
-        const errorData = await fundAnalysisResponse.json().catch(() => null);
-        console.warn('Fund analysis request failed:', errorData?.error || fundAnalysisResponse.status);
-        // We'll continue even if fund analysis fails
-      } else {
-        const fundAnalysisData = await fundAnalysisResponse.json();
-        console.log('Fund Analysis Response:', fundAnalysisData);
-        setFundAnalysis(fundAnalysisData.response);
-      }
-
-    } catch (error) {
-      console.error('Error fetching prediction:', error);
-      setError(`Failed to get prediction: ${error.message}`);
-    } finally {
-      setIsLoading(false);
-    }
+      const predRes = await fetch(`${API_URL}/predict`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(requestPayload) });
+      if (!predRes.ok) { const e = await predRes.json().catch(() => null); throw new Error(e?.error || `Error: ${predRes.status}`); }
+      const predData = await predRes.json();
+      const currentPriceINR = (Number(predData.current_price[assetSymbol]) || 0) * USD_TO_INR;
+      const predictedPriceINR = (Number(predData[`predicted_price_${forecastYears}_years`]) || 0) * USD_TO_INR;
+      setPrediction({ asset: assetName, currentPrice: currentPriceINR, predictedPrice: predictedPriceINR, interestRate: Number(predData.interest_rate) || 0, inflationRate: Number(predData.inflation_rate) || 0, growthApplied: predData.growth || '0%', forecastYears: parseInt(predData.forecast_years) || parseInt(forecastYears) });
+      const fundRes = await fetch(FUND_ANALYZER_API, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(requestPayload) });
+      if (fundRes.ok) { const fd = await fundRes.json(); setFundAnalysis(fd.response); }
+    } catch (err) { setError(`Failed to get prediction: ${err.message}`); } finally { setIsLoading(false); }
   };
 
-  const formatINR = (value) => {
-    return isNaN(value) ? '₹0' : `₹${Number(value).toLocaleString('en-IN')}`;
-  };
+  const formatINR = (v) => isNaN(v) ? '₹0' : `₹${Number(v).toLocaleString('en-IN')}`;
 
   const generateChartData = () => {
-    if (!prediction || !prediction.currentPrice || !prediction.predictedPrice) {
-      console.log('Chart data generation failed: Invalid prediction data', prediction);
-      return [];
-    }
-
-    const currentPrice = Number(prediction.currentPrice) || 0;
-    const predictedPrice = Number(prediction.predictedPrice) || 0;
-    const years = Number(prediction.forecastYears) || 1;
-    const growthRate = predictedPrice > 0 && currentPrice > 0 
-      ? Math.pow(predictedPrice / currentPrice, 1 / years) - 1 
-      : 0;
-
-    const data = [];
-    for (let year = 0; year <= years; year++) {
-      const projectedValue = currentPrice * Math.pow(1 + growthRate, year);
-      const inflationAdjustedValue = currentPrice * Math.pow(1 + growthRate - (Number(prediction.inflationRate) / 100 || 0), year);
-
-      data.push({
-        year: year,
-        projectedValue: Math.round(projectedValue) || 0,
-        inflationAdjustedValue: Math.round(inflationAdjustedValue) || 0,
-      });
-    }
-    console.log('Generated Chart Data:', data);
-    return data;
-  };
-
-  // Format the fund analysis text with proper line breaks and styling
-  const formatFundAnalysis = (text) => {
-    if (!text) return null;
-  
-    // Split the text into sections based on double newlines
-    const sections = text.split('\n\n');
-  
-    return sections.map((section, index) => {
-      // Handle sections with asterisks as list items
-      if (section.includes('*')) {
-        return (
-          <div key={index} className="mb-6">
-            <ul className="list-disc pl-5 text-gray-700 space-y-2">
-              {section
-                .split('\n')
-                .filter((line) => line.trim().startsWith('*'))
-                .map((line, lineIndex) => (
-                  <li key={lineIndex}>
-                    {line
-                      .replace('* ', '') // Remove the leading asterisk
-                      .split(/(\*\*.*?\*\*)/) // Split by bold markers
-                      .map((part, partIndex) =>
-                        part.startsWith('**') && part.endsWith('**') ? (
-                          <strong key={partIndex}>{part.replace(/\*\*/g, '')}</strong>
-                        ) : (
-                          part
-                        )
-                      )}
-                  </li>
-                ))}
-            </ul>
-          </div>
-        );
-      }
-  
-      // Default handling for other content
-      return (
-        <div key={index} className="mb-4">
-          {section.split('\n').map((line, lineIndex) => (
-            <p key={lineIndex} className="mb-2">
-              {line.split(/(\*\*.*?\*\*|📌 Investment Summary:|⚠️ Risk Metrics:|💡 Risk Advisory:)/).map((part, partIndex) => {
-                // Check for bold markers or specific phrases
-                if (part.startsWith('**') && part.endsWith('**')) {
-                  return <strong key={partIndex}>{part.replace(/\*\*/g, '')}</strong>;
-                } else if (
-                  part === '📌 Investment Summary:' ||
-                  part === '⚠️ Risk Metrics:' ||
-                  part === '💡 Risk Advisory:'
-                ) {
-                  return <strong key={partIndex}>{part}</strong>;
-                }
-                return part;
-              })}
-            </p>
-          ))}
-        </div>
-      );
-    });
+    if (!prediction?.currentPrice || !prediction?.predictedPrice) return [];
+    const cur = Number(prediction.currentPrice), pred = Number(prediction.predictedPrice), yrs = Number(prediction.forecastYears) || 1;
+    const gr = pred > 0 && cur > 0 ? Math.pow(pred / cur, 1 / yrs) - 1 : 0;
+    return Array.from({ length: yrs + 1 }, (_, yr) => ({
+      year: yr,
+      projectedValue: Math.round(cur * Math.pow(1 + gr, yr)) || 0,
+      inflationAdjustedValue: Math.round(cur * Math.pow(1 + gr - (Number(prediction.inflationRate) / 100 || 0), yr)) || 0,
+    }));
   };
 
   const CustomTooltip = ({ active, payload, label }) => {
-    if (active && payload && payload.length) {
-      return (
-        <div className="bg-white p-4 shadow-lg rounded-lg border border-gray-200">
-          <p className="font-semibold text-gray-800">Year {label}</p>
-          <p className="text-blue-600">
-            <span className="inline-block w-3 h-3 bg-blue-600 rounded-full mr-2"></span>
-            Projected Value: {formatINR(payload[0].value)}
-          </p>
-          <p className="text-green-600">
-            <span className="inline-block w-3 h-3 bg-green-600 rounded-full mr-2"></span>
-            Inflation Adjusted: {formatINR(payload[1].value)}
-          </p>
-        </div>
-      );
-    }
-    return null;
+    if (!active || !payload?.length) return null;
+    return (
+      <div style={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: "12px", padding: "10px 14px" }}>
+        <p className="text-xs font-bold mb-2" style={{ color: "var(--muted-foreground)" }}>Year {label}</p>
+        {payload.map((p, i) => (
+          <p key={i} className="text-sm font-semibold" style={{ color: p.color }}>{p.name}: {formatINR(p.value)}</p>
+        ))}
+      </div>
+    );
   };
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-gray-100 py-8 px-4">
-      <div className="max-w-6xl mx-auto">
-        <header className="text-center mb-8">
-          <h1 className="text-4xl font-semibold text-blue-900 ">Asset Return Forecast</h1>
-        </header>
+  const inp = "w-full px-4 py-3 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-ring transition";
+  const lbl = "block text-xs font-semibold uppercase tracking-wide mb-1.5";
 
-        <main className="flex flex-col gap-8">
-          <section>
-            <div className="bg-white rounded-xl shadow-lg p-6 lg:p-8 transition duration-300 hover:translate-y-1 hover:shadow-xl">
-              <h2 className="text-2xl font-semibold text-blue-900 mb-6 pb-2 border-b-2 border-blue-500 inline-block">Prediction Parameters</h2>
-              <div className="mb-6">
-                <label htmlFor="assetType" className="block mb-2 text-gray-600 font-medium">Asset Type</label>
-                <select id="assetType" value={assetType} onChange={(e) => { setAssetType(e.target.value); setAssetName(''); }} className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition">
-                  <option value="">Select Asset Type</option>
-                  {Object.keys(assetOptions).map(type => <option key={type} value={type}>{type}</option>)}
+  const fields = [
+    { id: "forecastYears", label: "Forecast Period (Years)", value: forecastYears, set: setForecastYears, type: "number", min: 1, max: 30, placeholder: "e.g., 2", hint: "Number of years to forecast the asset's future value" },
+    { id: "interestRate", label: "Interest Rate (%)", value: interestRate, set: setInterestRate, type: "number", min: 0, max: 20, step: 0.1, placeholder: "e.g., 3", hint: "Higher rates may reduce asset values" },
+    { id: "inflationRate", label: "Inflation Rate (%)", value: inflationRate, set: setInflationRate, type: "number", min: 0, max: 20, step: 0.1, placeholder: "e.g., 2", hint: "Higher inflation erodes purchasing power" },
+  ];
+
+  return (
+    <div className="min-h-full px-6 pb-8 font-sans" style={{ background: "transparent" }}>
+      <div className="max-w-4xl mx-auto">
+        <main className="flex flex-col gap-6">
+
+          {/* Parameters Card */}
+          <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }} className="rounded-[24px] border p-7" style={{ background: "var(--card)", borderColor: "var(--border)" }}>
+            <h2 className="text-lg font-bold mb-6" style={{ color: "var(--foreground)" }}>Prediction Parameters</h2>
+
+            {/* Asset Type */}
+            <div className="mb-5">
+              <label htmlFor="assetType" className={lbl} style={{ color: "var(--muted-foreground)" }}>Asset Type</label>
+              <select id="assetType" value={assetType}
+                onChange={(e) => { setAssetType(e.target.value); setAssetName(''); }}
+                className={inp} style={{ background: "var(--muted)", borderColor: "var(--border)", color: "var(--foreground)" }}>
+                <option value="">Select Asset Type</option>
+                {Object.keys(assetOptions).map(t => <option key={t} value={t}>{t}</option>)}
+              </select>
+            </div>
+
+            {/* Asset Name (conditional) */}
+            {assetType && (
+              <div className="mb-5">
+                <label htmlFor="assetName" className={lbl} style={{ color: "var(--muted-foreground)" }}>Asset Name</label>
+                <select id="assetName" value={assetName} onChange={(e) => setAssetName(e.target.value)}
+                  className={inp} style={{ background: "var(--muted)", borderColor: "var(--border)", color: "var(--foreground)" }}>
+                  <option value="">Select Asset</option>
+                  {assetOptions[assetType].map(a => <option key={a} value={a}>{a}</option>)}
                 </select>
               </div>
-              {assetType && (
-                <div className="mb-6">
-                  <label htmlFor="assetName" className="block mb-2 text-gray-600 font-medium">Asset Name</label>
-                  <select id="assetName" value={assetName} onChange={(e) => setAssetName(e.target.value)} className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition">
-                    <option value="">Select Asset</option>
-                    {assetOptions[assetType].map(asset => <option key={asset} value={asset}>{asset}</option>)}
-                  </select>
+            )}
+
+            {/* Numeric fields */}
+            <div className="grid md:grid-cols-3 gap-5 mb-6">
+              {fields.map(({ id, label, value, set, hint, ...rest }) => (
+                <div key={id}>
+                  <div className="flex items-center gap-1.5 mb-1.5">
+                    <label htmlFor={id} className={lbl} style={{ color: "var(--muted-foreground)", marginBottom: 0 }}>{label}</label>
+                    <div className="group relative">
+                      <div className="cursor-help flex items-center justify-center text-primary transition-opacity hover:opacity-80">
+                        <Info size={14} />
+                      </div>
+                      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 w-44 text-xs rounded-lg px-3 py-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition z-10 pointer-events-none shadow-lg"
+                        style={{ background: "var(--popover)", color: "var(--popover-foreground)", border: "1px solid var(--border)" }}>
+                        {hint}
+                      </div>
+                    </div>
+                  </div>
+                  <input id={id} type={rest.type} value={value} onChange={e => set(e.target.value)}
+                    min={rest.min} max={rest.max} step={rest.step} placeholder={rest.placeholder}
+                    className={inp} style={{ background: "var(--muted)", borderColor: "var(--border)", color: "var(--foreground)" }} />
+                </div>
+              ))}
+            </div>
+
+            <button onClick={generatePrediction} disabled={isLoading}
+              className="w-full py-4 rounded-[14px] font-bold text-base transition-all duration-300 hover:scale-[1.01] active:scale-[0.99] flex items-center justify-center gap-2"
+              style={{ background: "var(--primary)", color: "var(--primary-foreground)", opacity: isLoading ? 0.7 : 1 }}>
+              {isLoading ? (
+                <><Loader2 size={18} className="animate-spin" /> Processing prediction...</>
+              ) : (
+                <><Sparkles size={18} /> Predict Asset Return</>
+              )}
+            </button>
+
+            {error && (
+              <div className="mt-4 px-4 py-3 rounded-xl text-sm border" style={{ background: "color-mix(in oklch, var(--destructive) 8%, var(--background))", borderColor: "color-mix(in oklch, var(--destructive) 30%, transparent)", color: "var(--destructive)" }}>
+                {error}
+              </div>
+            )}
+          </motion.div>
+
+          {/* Results */}
+          {prediction && (
+            <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.15 }} ref={resultsRef} className="rounded-[24px] border p-7 space-y-6" style={{ background: "var(--card)", borderColor: "var(--border)" }}>
+              <div>
+                <h2 className="text-lg font-bold mb-1" style={{ color: "var(--foreground)" }}>{prediction.forecastYears}-Year Prediction Results</h2>
+                <p className="text-sm" style={{ color: "var(--muted-foreground)" }}>{prediction.asset}</p>
+              </div>
+
+              {/* Stat chips */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {[
+                  { label: "Current Price", value: formatINR(prediction.currentPrice) },
+                  { label: `Predicted (${prediction.forecastYears}yr)`, value: formatINR(prediction.predictedPrice), highlight: true },
+                  { label: "Interest Rate", value: `${prediction.interestRate}%` },
+                  { label: "Inflation Rate", value: `${prediction.inflationRate}%` },
+                ].map(({ label, value, highlight }) => (
+                  <div key={label} className="rounded-[16px] p-4" style={{ background: "var(--muted)" }}>
+                    <p className="text-xs mb-1" style={{ color: "var(--muted-foreground)" }}>{label}</p>
+                    <p className="text-base font-bold" style={{ color: highlight ? "var(--primary)" : "var(--foreground)" }}>{value}</p>
+                  </div>
+                ))}
+              </div>
+
+              {/* Chart */}
+              <div className="rounded-[16px] border p-5" style={{ borderColor: "var(--border)", background: "var(--muted)" }}>
+                <h3 className="text-sm font-bold mb-4" style={{ color: "var(--foreground)" }}>{prediction.forecastYears}-Year Investment Projection</h3>
+                <div style={{ height: '280px' }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={generateChartData()} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
+                      <CartesianGrid strokeDasharray="2 4" stroke="var(--border)" vertical={false} />
+                      <XAxis dataKey="year" tick={{ fill: "var(--muted-foreground)", fontSize: 11 }} axisLine={false} tickLine={false} label={{ value: 'Year', position: 'insideBottomRight', offset: -5, fill: "var(--muted-foreground)", fontSize: 11 }} />
+                      <YAxis tickFormatter={(v) => `₹${(v / 1000).toFixed(0)}k`} tick={{ fill: "var(--muted-foreground)", fontSize: 11 }} axisLine={false} tickLine={false} />
+                      <Tooltip content={<CustomTooltip />} />
+                      <Legend wrapperStyle={{ fontSize: 12, color: "var(--muted-foreground)" }} />
+                      <Line type="monotone" dataKey="projectedValue" name="Projected Value" stroke="var(--primary)" strokeWidth={2.5} dot={false} activeDot={{ r: 5 }} />
+                      <Line type="monotone" dataKey="inflationAdjustedValue" name="Inflation Adjusted" stroke="#10b981" strokeWidth={2.5} dot={false} />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+                <p className="text-xs mt-3 leading-relaxed" style={{ color: "var(--muted-foreground)" }}>
+                  Analysis based on {prediction.interestRate}% interest rate, {prediction.inflationRate}% inflation, over {prediction.forecastYears} years. Green line shows inflation-adjusted purchasing power.
+                </p>
+              </div>
+
+              {/* Fund Analysis */}
+              {fundAnalysis && (
+                <div className="rounded-[16px] border p-5" style={{ borderColor: "var(--border)" }}>
+                  <h3 className="text-sm font-bold mb-4" style={{ color: "var(--foreground)" }}>Detailed Asset Analysis</h3>
+                  <div className="space-y-2 text-sm leading-relaxed" style={{ color: "var(--foreground)" }}>
+                    {fundAnalysis.split('\n\n').map((section, i) => (
+                      <div key={i} className="mb-3">
+                        {section.split('\n').map((line, j) => (
+                          <p key={j} className="mb-1" style={{ color: line.startsWith('*') ? "var(--foreground)" : "var(--muted-foreground)" }}>
+                            {line.replace(/^\*\s*/, '• ').replace(/\*\*([^*]+)\*\*/g, '$1')}
+                          </p>
+                        ))}
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
-              <div className="mb-6">
-                <label htmlFor="forecastYears" className="block mb-2 text-gray-600 font-medium flex items-center">
-                  Forecast Period (Years)
-                  <div className="group relative ml-2">
-                    <span className="text-blue-500 cursor-help">ⓘ</span>
-                    <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 bg-blue-900 text-white text-xs rounded py-2 px-3 w-48 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition">
-                      Number of years to forecast the asset's future value
-                    </div>
-                  </div>
-                </label>
-                <input type="number" id="forecastYears" value={forecastYears} onChange={(e) => setForecastYears(e.target.value)} min="1" max="30" step="1" placeholder="e.g., 2" className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition" />
-              </div>
-              <div className="mb-6">
-                <label htmlFor="interestRate" className="block mb-2 text-gray-600 font-medium flex items-center">
-                  Interest Rate (%)
-                  <div className="group relative ml-2">
-                    <span className="text-blue-500 cursor-help">ⓘ</span>
-                    <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 bg-blue-900 text-white text-xs rounded py-2 px-3 w-48 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition">
-                      Current market interest rate. Higher rates may reduce asset values.
-                    </div>
-                  </div>
-                </label>
-                <input type="number" id="interestRate" value={interestRate} onChange={(e) => setInterestRate(e.target.value)} min="0" max="20" step="0.1" placeholder="e.g., 3" className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition" />
-              </div>
-              <div className="mb-6">
-                <label htmlFor="inflationRate" className="block mb-2 text-gray-600 font-medium flex items-center">
-                  Inflation Rate (%)
-                  <div className="group relative ml-2">
-                    <span className="text-blue-500 cursor-help">ⓘ</span>
-                    <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 bg-blue-900 text-white text-xs rounded py-2 px-3 w-48 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition">
-                      Expected annual inflation rate. Higher inflation typically erodes asset values.
-                    </div>
-                  </div>
-                </label>
-                <input type="number" id="inflationRate" value={inflationRate} onChange={(e) => setInflationRate(e.target.value)} min="0" max="20" step="0.1" placeholder="e.g., 2" className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition" />
-              </div>
-              <button onClick={generatePrediction} disabled={isLoading} className={`w-full py-4 px-6 rounded-lg text-white font-semibold text-lg transition duration-300 transform hover:-translate-y-1 hover:shadow-lg ${isLoading ? 'bg-gray-400 cursor-not-allowed' : 'bg-gradient-to-r from-blue-600 to-blue-800'}`}>
-                {isLoading ? 'Processing...' : 'Predict'}
-              </button>
-              {error && <div className="mt-4 p-3 bg-red-50 border-l-4 border-red-500 text-red-700"><p>{error}</p></div>}
-            </div>
-          </section>
-
-          {prediction && (
-            <section ref={resultsRef} className="w-full pt-4 mt-2">
-              <div className="bg-white rounded-xl shadow-lg p-6 lg:p-8 border-l-4 border-blue-500 transition duration-300 hover:shadow-xl">
-                <h2 className="text-2xl font-semibold text-blue-900 mb-6 pb-2 border-b-2 border-blue-500 inline-block">{prediction.forecastYears}-Year Prediction Results</h2>
-                <div className="space-y-6">
-                  <div className="mb-4">
-                    <span className="text-gray-500 text-sm">Asset:</span>
-                    <p className="text-blue-900 font-semibold text-lg">{prediction.asset}</p>
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                      <span className="text-gray-500 text-sm">Current Price:</span>
-                      <p className="text-blue-900 font-semibold text-lg">{formatINR(prediction.currentPrice)}</p>
-                    </div>
-                    <div>
-                      <span className="text-gray-500 text-sm">Predicted Price ({prediction.forecastYears} years):</span>
-                      <p className="text-blue-600 font-bold text-xl">{formatINR(prediction.predictedPrice)}</p>
-                    </div>
-                    <div>
-                      <span className="text-gray-500 text-sm">Interest Rate:</span>
-                      <p className="text-blue-900 font-semibold">{prediction.interestRate}%</p>
-                    </div>
-                    <div>
-                      <span className="text-gray-500 text-sm">Inflation Rate:</span>
-                      <p className="text-blue-900 font-semibold">{prediction.inflationRate}%</p>
-                    </div>
-                  </div>
-                  <div className="mt-8">
-                    <div className="bg-white rounded-xl shadow-lg p-6">
-                      <h3 className="text-xl font-semibold text-blue-900 mb-4">{prediction.forecastYears}-Year Investment Projection</h3>
-                      <div className="flex flex-col md:flex-row md:justify-between mb-6">
-                        <div className="mb-4 md:mb-0">
-                          <span className="text-gray-500 text-sm block">Current Value:</span>
-                          <span className="text-blue-900 font-semibold text-lg">{formatINR(prediction.currentPrice)}</span>
-                        </div>
-                        <div className="mb-4 md:mb-0">
-                          <span className="text-gray-500 text-sm block">Projected in {prediction.forecastYears} Years:</span>
-                          <span className="text-blue-600 font-bold text-lg">{formatINR(prediction.predictedPrice)}</span>
-                        </div>
-                      </div>
-                      <div style={{ height: '300px' }}>
-                        <ResponsiveContainer width="100%" height="100%">
-                          <LineChart data={generateChartData()} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                            <XAxis dataKey="year" tick={{ fill: '#4a5568' }} axisLine={{ stroke: '#e2e8f0' }} label={{ value: 'Year', position: 'insideBottomRight', offset: -5 }} />
-                            <YAxis tickFormatter={(value) => `₹${(value / 1000)}k`} tick={{ fill: '#4a5568' }} axisLine={{ stroke: '#e2e8f0' }} />
-                            <Tooltip content={<CustomTooltip />} />
-                            <Legend />
-                            <Line type="monotone" dataKey="projectedValue" name="Projected Value" stroke="#3182ce" strokeWidth={3} dot={{ stroke: '#3182ce', strokeWidth: 2, r: 4, fill: 'white' }} activeDot={{ r: 6 }} />
-                            <Line type="monotone" dataKey="inflationAdjustedValue" name="Inflation Adjusted" stroke="#38a169" strokeWidth={3} dot={{ stroke: '#38a169', strokeWidth: 2, r: 4, fill: 'white' }} />
-                          </LineChart>
-                        </ResponsiveContainer>
-                      </div>
-                      <div className="mt-4 bg-blue-50 p-4 rounded-lg border-l-4 border-blue-400">
-                        <p className="text-blue-800 text-sm">
-                          <strong>Analysis:</strong> This projection is based on your input parameters including an interest rate of {prediction.interestRate}%, inflation rate of {prediction.inflationRate}%, and forecast period of {prediction.forecastYears} years. The green line shows purchasing power after accounting for inflation.
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  {/* New Fund Analysis Section */}
-                  {fundAnalysis && (
-                    <div className="mt-8">
-                      <div className="bg-white rounded-xl shadow-lg p-6">
-                        <h3 className="text-xl font-semibold text-blue-900 mb-4">Detailed Asset Analysis</h3>
-                        <div className="text-gray-700 space-y-2">
-                          {formatFundAnalysis(fundAnalysis)}
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </section>
+            </motion.div>
           )}
+
         </main>
       </div>
     </div>

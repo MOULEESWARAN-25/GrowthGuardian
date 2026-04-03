@@ -1,336 +1,254 @@
 import React, { useState, useRef, useEffect } from "react";
-import {
-  MessageCircle,
-  X,
-  Send,
-  ChevronUp,
-  ChevronDown,
-  Mic,
-} from "lucide-react";
+import { X, Send, Mic, Sparkles, ChevronRight, Target, RefreshCw } from "lucide-react";
+// eslint-disable-next-line no-unused-vars
+import { motion, AnimatePresence } from "framer-motion";
+
+const QUICK_CHIPS = [
+  "Check my budget health",
+  "Best investment for ₹10k/month",
+  "Explain SIP vs lumpsum",
+];
+
+// Lightweight markdown renderer — no external dependency
+const MdText = ({ children }) => {
+  const lines = (children || "").split("\n");
+  return (
+    <div className="space-y-1 text-[13px] leading-relaxed">
+      {lines.map((line, i) => {
+        if (!line.trim()) return <div key={i} className="h-1.5" />;
+        const h = line.match(/^(#{1,3})\s+(.+)/);
+        if (h) return <p key={i} className="font-bold mt-2" dangerouslySetInnerHTML={{ __html: fmt(h[2]) }} />;
+        const b = line.match(/^[-*]\s+(.+)/);
+        if (b) return <p key={i} className="flex gap-2"><span className="opacity-50 mt-0.5">•</span><span dangerouslySetInnerHTML={{ __html: fmt(b[1]) }} /></p>;
+        return <p key={i} dangerouslySetInnerHTML={{ __html: fmt(line) }} />;
+      })}
+    </div>
+  );
+};
+const fmt = (t) =>
+  t.replace(/`([^`]+)`/g, '<code style="background:rgba(255,255,255,0.12);font-family:monospace;padding:1px 5px;border-radius:3px;font-size:11px">$1</code>')
+   .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
+   .replace(/\*([^*]+)\*/g, "<em>$1</em>");
 
 const FloatingChatbot = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState([
-    {
-      text: "Hello! I can help you with information about banking. What would you like to know?",
-      sender: "bot",
-    },
+    { text: "Hello! I'm **Guardian AI** — your personal finance assistant. Ask me anything about budgeting, investing, or savings.", sender: "bot" },
   ]);
   const recognitionRef = useRef(null);
-  const [isOptionsOpen, setIsOptionsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isListening, setIsListening] = useState(false);
-  const messagesEndRef = useRef(null);
+  const bottomRef = useRef(null);
+  const inputRef = useRef(null);
 
-  const options = [
-    "Tell me about HDFC Bank",
-    "What are the current interest rates?",
-    "How do I open an account?",
-    "What are the different types of loans?",
-    "Credit card information",
-    "Online banking features",
-    "Branch locations",
-    "Contact customer service",
-  ];
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, isLoading]);
 
-  const speak = async (text) => {
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = "en-US";
-    speechSynthesis.speak(utterance);
-  };
-  
+  useEffect(() => {
+    if (isOpen && !isLoading) inputRef.current?.focus();
+  }, [isOpen, isLoading]);
+
   const initRecognition = () => {
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SpeechRecognition) {
-      alert("Speech recognition not supported in this browser.");
-      return null;
-    }
-
-    const recognition = new SpeechRecognition();
-    recognition.lang = 'en-US';
-    recognition.interimResults = false;
-
-    recognition.onresult = (event) => {
-      const voiceText = event.results[0][0].transcript;
-      handleVoiceInput(voiceText);
-    };
-
-    recognition.onend = () => {
-      setIsListening(false);
-    };
-
-    recognition.onerror = (event) => {
-      console.error('Speech recognition error:', event.error);
-      setIsListening(false);
-    };
-
-    return recognition;
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) return null;
+    const r = new SR();
+    r.lang = "en-US";
+    r.interimResults = false;
+    r.onresult = (e) => { const t = e.results[0][0].transcript; if (t) handleSendDirect(t); };
+    r.onend = () => setIsListening(false);
+    return r;
   };
 
   const startListening = () => {
-    if (!recognitionRef.current) {
-      recognitionRef.current = initRecognition();
-    }
-    if (recognitionRef.current) {
-      setIsListening(true);
-      recognitionRef.current.start();
-    }
-  };
-  
-  // Auto-scroll to bottom when new messages are added
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
-
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (!recognitionRef.current) recognitionRef.current = initRecognition();
+    if (recognitionRef.current) { setIsListening(true); recognitionRef.current.start(); }
   };
 
-  const toggleChat = () => {
-    setIsOpen(!isOpen);
-  };
-
-  const fetchBotResponse = async (userPrompt) => {
+  const fetchBotResponse = async (prompt) => {
     setIsLoading(true);
     try {
-      const response = await fetch(
-        "https://hackit-fin-tech-backend.vercel.app/api/chatBot",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ prompt: userPrompt }),
-          mode: "cors",
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error("Network response was not ok");
-      }
-
-      const data = await response.json();
+      const res = await fetch("http://localhost:5000/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt }),
+      });
+      if (!res.ok) throw new Error();
+      const data = await res.json();
       return data;
-    } catch (error) {
-      console.error("Error fetching bot response:", error);
-      return {
-        response: "Sorry, I encountered an error. Please try again later.",
-      };
+    } catch {
+      return { response: "⚠️ Could not reach the backend. Please ensure the server is running on `localhost:5000`." };
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleVoiceInput = async (voiceText) => {
-    if (voiceText) {
-      // Add user message
-      setMessages((prev) => [...prev, { text: voiceText, sender: "user" }]);
-
-      // Add loading indicator
-      setMessages((prev) => [
-        ...prev,
-        { text: "...", sender: "bot", isLoading: true },
-      ]);
-
-      // Get bot response from API
-      const botData = await fetchBotResponse(voiceText);
-
-      // Remove loading indicator and add actual response
-      setMessages((prev) => prev.filter((msg) => !msg.isLoading));
-      
-      const responseText = botData.response || "I didn't get a response. Please try again.";
-      
-      // Add response to messages
-      setMessages((prev) => [
-        ...prev,
-        {
-          text: responseText,
-          sender: "bot",
-        },
-      ]);
-      
-      // Speak only the bot response
-      speak(responseText);
-    }
+  const handleSendDirect = async (text) => {
+    setMessages((p) => [...p, { text, sender: "user" }]);
+    setMessage("");
+    const d = await fetchBotResponse(text);
+    setMessages((p) => [...p, { text: d.response || "No response.", sender: "bot" }]);
   };
 
-  const handleSend = async () => {
-    if (message.trim()) {
-      // Add user message
-      const userMessage = message.trim();
-      setMessages((prev) => [...prev, { text: userMessage, sender: "user" }]);
-      setMessage("");
-
-      // Add loading indicator
-      setMessages((prev) => [
-        ...prev,
-        { text: "...", sender: "bot", isLoading: true },
-      ]);
-
-      // Get bot response from API
-      const botData = await fetchBotResponse(userMessage);
-
-      // Remove loading indicator and add actual response
-      setMessages((prev) => prev.filter((msg) => !msg.isLoading));
-      setMessages((prev) => [
-        ...prev,
-        {
-          text:
-            botData.response || "I didn't get a response. Please try again.",
-          sender: "bot",
-        },
-      ]);
-    }
-  };
-
-  const handleKeyPress = (e) => {
-    if (e.key === "Enter") {
-      handleSend();
-    }
-  };
-
-  const selectOption = (option) => {
-    setMessage(option);
-    setIsOptionsOpen(false);
-  };
+  const handleSend = () => { if (message.trim() && !isLoading) handleSendDirect(message.trim()); };
 
   return (
-    <div className="fixed bottom-8 right-8 z-50 font-sans">
-      {/* Chatbot Button */}
-      <button
-        onClick={toggleChat}
-        className={`flex items-center justify-center w-16 h-16 rounded-full shadow-lg transition-all duration-300 hover:shadow-xl ${
-          isOpen
-            ? "bg-white text-blue-600 rotate-90"
-            : "bg-blue-600 text-white hover:bg-blue-700"
-        }`}
-      >
-        {isOpen ? <X size={24} /> : <MessageCircle size={24} />}
-      </button>
+    <div className="fixed bottom-7 right-7 z-50 font-sans">
 
-      {/* Chat Window */}
-      {isOpen && (
-        <div className="absolute bottom-20 right-0 w-80 md:w-96 bg-white rounded-lg shadow-xl overflow-hidden flex flex-col transform transition-all duration-300 ease-in-out scale-100 origin-bottom-right">
-          {/* Header */}
-          <div className="bg-blue-600 text-white p-4 flex items-center justify-between">
-            <h3 className="font-semibold">Banking Assistant</h3>
-            <button
-              onClick={() => setIsOpen(false)}
-              className="text-white hover:text-blue-200 transition"
-            >
-              <X size={18} />
-            </button>
-          </div>
+      {/* FAB trigger */}
+      <AnimatePresence>
+        {!isOpen && (
+          <motion.button
+            initial={{ scale: 0, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0, opacity: 0 }}
+            whileHover={{ scale: 1.06 }}
+            whileTap={{ scale: 0.94 }}
+            onClick={() => setIsOpen(true)}
+            className="relative flex items-center justify-center w-14 h-14 rounded-2xl"
+            style={{
+              background: "linear-gradient(135deg, var(--primary), color-mix(in oklch, var(--primary) 65%, black))",
+              boxShadow: "0 8px 32px color-mix(in oklch, var(--primary) 40%, transparent), 0 0 0 1px rgba(255,255,255,0.08)",
+            }}
+          >
+            <span className="absolute inset-0 rounded-2xl animate-pulse" style={{ background: "color-mix(in oklch, var(--primary) 25%, transparent)" }} />
+            <Sparkles size={22} className="text-white relative z-10" />
+          </motion.button>
+        )}
+      </AnimatePresence>
 
-          {/* Messages Container */}
-          <div className="flex-1 p-4 overflow-y-auto max-h-96 space-y-4">
-            {messages.map((msg, index) => (
-              <div
-                key={index}
-                className={`flex ${
-                  msg.sender === "user" ? "justify-end" : "justify-start"
-                }`}
-              >
-                <div
-                  className={`max-w-3/4 p-3 rounded-lg ${
-                    msg.sender === "user"
-                      ? "bg-blue-600 text-white rounded-br-none"
-                      : "bg-blue-100 text-gray-800 rounded-bl-none"
-                  } shadow-sm transition-all duration-200 hover:shadow-md`}
-                >
-                  {msg.isLoading ? (
-                    <div className="flex space-x-1">
-                      <div
-                        className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
-                        style={{ animationDelay: "0s" }}
-                      ></div>
-                      <div
-                        className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
-                        style={{ animationDelay: "0.2s" }}
-                      ></div>
-                      <div
-                        className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
-                        style={{ animationDelay: "0.4s" }}
-                      ></div>
-                    </div>
-                  ) : (
-                    msg.text
-                  )}
+      {/* Chat panel */}
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            initial={{ opacity: 0, y: 18, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 18, scale: 0.95 }}
+            transition={{ type: "spring", damping: 26, stiffness: 280 }}
+            className="absolute right-0 flex flex-col overflow-hidden"
+            style={{
+              bottom: "calc(100% + 20px)",
+              width: "390px",
+              height: "590px",
+              background: "var(--card)",
+              border: "1px solid var(--border)",
+              borderRadius: "24px",
+              boxShadow: "0 32px 80px -12px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.04)",
+            }}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between px-5 py-4 flex-shrink-0"
+              style={{ borderBottom: "1px solid var(--border)" }}>
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl flex items-center justify-center"
+                  style={{ background: "var(--primary)", boxShadow: "0 4px 14px color-mix(in oklch, var(--primary) 30%, transparent)" }}>
+                  <Target size={17} className="text-white" strokeWidth={2.5} />
+                </div>
+                <div>
+                  <h3 className="text-[15px] font-bold tracking-tight" style={{ color: "var(--foreground)" }}>Guardian AI</h3>
+                  <p className="text-[10px] font-bold uppercase tracking-[0.18em] flex items-center gap-1.5" style={{ color: "#10b981" }}>
+                    <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: "#10b981" }} />
+                    Online
+                  </p>
                 </div>
               </div>
-            ))}
-            <div ref={messagesEndRef} />
-          </div>
-
-          {/* Options Section */}
-          <div className="border-t border-gray-200">
-            <div
-              className="p-2 bg-blue-50 flex justify-between items-center cursor-pointer hover:bg-blue-100 transition-colors"
-              onClick={() => setIsOptionsOpen(!isOptionsOpen)}
-            >
-              <span className="text-blue-600 font-medium">Quick Questions</span>
-              {isOptionsOpen ? (
-                <ChevronDown size={18} />
-              ) : (
-                <ChevronUp size={18} />
-              )}
+              <div className="flex items-center gap-1">
+                <button onClick={() => setMessages([{ text: "Hello! I'm **Guardian AI** — your personal finance assistant.", sender: "bot" }])}
+                  className="p-2 rounded-xl transition-all" title="Clear chat"
+                  style={{ color: "var(--muted-foreground)" }}
+                  onMouseEnter={e => { e.currentTarget.style.background = "var(--accent)"; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = "transparent"; }}>
+                  <RefreshCw size={14} />
+                </button>
+                <button onClick={() => setIsOpen(false)} className="p-2 rounded-xl transition-all"
+                  style={{ color: "var(--muted-foreground)" }}
+                  onMouseEnter={e => { e.currentTarget.style.background = "var(--accent)"; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = "transparent"; }}>
+                  <X size={18} />
+                </button>
+              </div>
             </div>
 
-            {isOptionsOpen && (
-              <div className="max-h-40 overflow-y-auto bg-white">
-                {options.map((option, index) => (
-                  <div
-                    key={index}
-                    className="p-2 hover:bg-blue-50 cursor-pointer transition-colors text-gray-700"
-                    onClick={() => selectOption(option)}
-                  >
-                    {option}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+            {/* Messages */}
+            <div className="flex-1 overflow-y-auto no-scrollbar px-4 py-4 space-y-3">
+              {/* Quick chips */}
+              {messages.length === 1 && (
+                <div className="space-y-2 pb-1">
+                  {QUICK_CHIPS.map((c, i) => (
+                    <button key={i} onClick={() => handleSendDirect(c)}
+                      className="w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-[12.5px] font-medium text-left transition-all"
+                      style={{ background: "var(--muted)", border: "1px solid var(--border)", color: "var(--muted-foreground)" }}
+                      onMouseEnter={e => { e.currentTarget.style.background = "var(--accent)"; e.currentTarget.style.color = "var(--foreground)"; }}
+                      onMouseLeave={e => { e.currentTarget.style.background = "var(--muted)"; e.currentTarget.style.color = "var(--muted-foreground)"; }}>
+                      {c} <ChevronRight size={13} />
+                    </button>
+                  ))}
+                </div>
+              )}
 
-          {/* Input Container */}
-          <div className="p-3 bg-white border-t border-gray-200 flex items-center">
-            <input
-              type="text"
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
-              onKeyPress={handleKeyPress}
-              placeholder="Type your message..."
-              className="flex-1 p-2 border border-gray-300 rounded-l-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
-              disabled={isLoading}
-            />
-            <button
-              className={`p-2 ${
-                isListening 
-                  ? "bg-red-500 text-white" 
-                  : "bg-blue-600 hover:bg-blue-700 text-white"
-              } transition-colors duration-200`}
-              onClick={startListening}
-              disabled={isLoading}
-            >
-              <Mic size={18} />
-            </button>
-            <button
-              onClick={handleSend}
-              disabled={!message.trim() || isLoading}
-              className={`p-2 rounded-r-lg ${
-                message.trim() && !isLoading
-                  ? "bg-blue-600 hover:bg-blue-700 text-white"
-                  : "bg-gray-200 text-gray-400"
-              } transition-colors duration-200`}
-            >
-              <Send size={18} />
-            </button>
-          </div>
-        </div>
-      )}
+              {messages.map((msg, i) => (
+                <motion.div key={i} initial={{ opacity: 0, x: msg.sender === "user" ? 8 : -8 }} animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.22 }}
+                  className={`flex flex-col ${msg.sender === "user" ? "items-end" : "items-start"}`}>
+                  <div className="max-w-[90%] px-4 py-3 rounded-2xl"
+                    style={msg.sender === "user"
+                      ? { background: "var(--primary)", color: "var(--primary-foreground)", borderBottomRightRadius: "5px" }
+                      : { background: "var(--muted)", border: "1px solid var(--border)", color: "var(--foreground)", borderBottomLeftRadius: "5px" }}>
+                    {msg.sender === "bot" ? <MdText>{msg.text}</MdText> : <p className="text-[13px]">{msg.text}</p>}
+                  </div>
+                </motion.div>
+              ))}
+
+              {isLoading && (
+                <div className="flex items-start">
+                  <div className="px-4 py-3.5 rounded-2xl flex items-center gap-1.5"
+                    style={{ background: "var(--muted)", border: "1px solid var(--border)", borderBottomLeftRadius: "5px" }}>
+                    {[1, 2, 3].map(n => (
+                      <span key={n} className={`w-2 h-2 rounded-full animate-wave-${n}`}
+                        style={{ background: "var(--primary)", opacity: n === 1 ? 1 : n === 2 ? 0.7 : 0.4 }} />
+                    ))}
+                  </div>
+                </div>
+              )}
+              <div ref={bottomRef} />
+            </div>
+
+            {/* Input */}
+            <div className="flex-shrink-0 p-4" style={{ borderTop: "1px solid var(--border)" }}>
+              <div className="flex items-center gap-2 rounded-[16px] p-1.5 transition-all"
+                style={{ background: "var(--muted)", border: "1px solid var(--border)" }}>
+                <input
+                  ref={inputRef}
+                  type="text"
+                  value={message}
+                  onChange={(e) => setMessage(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleSend()}
+                  placeholder="Ask AI anything..."
+                  className="flex-1 py-2.5 px-3 bg-transparent text-[13.5px] font-medium focus:outline-none"
+                  style={{ color: "var(--foreground)", caretColor: "var(--primary)" }}
+                  disabled={isLoading}
+                />
+                <button type="button" onClick={startListening} disabled={isLoading}
+                  className="p-2 rounded-xl transition-all"
+                  style={{ color: isListening ? "#ef4444" : "var(--muted-foreground)", background: isListening ? "rgba(239,68,68,0.08)" : "transparent" }}>
+                  <Mic size={15} />
+                </button>
+                <button type="button" onClick={handleSend} disabled={!message.trim() || isLoading}
+                  className="h-9 w-9 rounded-[12px] flex items-center justify-center transition-all flex-shrink-0"
+                  style={{
+                    background: message.trim() && !isLoading ? "var(--primary)" : "var(--background)",
+                    color: message.trim() && !isLoading ? "var(--primary-foreground)" : "var(--muted-foreground)",
+                  }}>
+                  <Send size={15} />
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
 
 export default FloatingChatbot;
-

@@ -547,13 +547,13 @@ const LearningModules = () => {
                     )}
                   </div>
 
-                  <div className="absolute inset-0 p-6 flex flex-col justify-between text-white">
+                  <div className="absolute inset-0 p-6 flex flex-col justify-between text-foreground">
                     <div className="flex justify-between items-start">
                       <div>
                         <h3 className="text-2xl font-bold mb-2">
                           {guide.title}
                         </h3>
-                        <p className="text-white text-opacity-90 max-w-xs">
+                        <p className="text-foreground text-opacity-90 max-w-xs">
                           {guide.description}
                         </p>
                       </div>
@@ -569,7 +569,7 @@ const LearningModules = () => {
                             : "Coming Soon"}
                         </span>
                         {completedModules[guide.id] && (
-                          <span className="bg-blue-800 text-white rounded-full px-3 py-1.5 text-sm font-medium flex items-center shadow-md">
+                          <span className="bg-blue-800 text-foreground rounded-full px-3 py-1.5 text-sm font-medium flex items-center shadow-md">
                             <svg
                               className="w-4 h-4 mr-1"
                               fill="none"
@@ -615,7 +615,7 @@ const LearningModules = () => {
       {activeGuide && (
         <div className="fixed inset-0 bg-black bg-opacity-85 backdrop-filter backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl w-full max-w-6xl max-h-screen overflow-hidden flex flex-col shadow-2xl">
-            <div className="px-6 py-4 bg-gradient-to-r from-blue-900 to-blue-700 text-white flex justify-between items-center">
+            <div className="px-6 py-4 bg-gradient-to-r from-blue-900 to-blue-700 text-foreground flex justify-between items-center">
               {" "}
               {/* Darker shade */}
               <div className="flex items-center">
@@ -640,7 +640,7 @@ const LearningModules = () => {
                 </h2>
               </div>
               <button
-                className="bg-white bg-opacity-25 hover:bg-opacity-40 text-white p-2 rounded-lg focus:outline-none transition-all duration-200"
+                className="bg-white bg-opacity-25 hover:bg-opacity-40 text-foreground p-2 rounded-lg focus:outline-none transition-all duration-200"
                 onClick={closeGuide}
               >
                 <svg
@@ -672,7 +672,7 @@ const LearningModules = () => {
                       className="w-full h-full object-contain relative z-10 p-4"
                     />
                     <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-blue-900 to-transparent p-4 md:hidden">
-                      <h3 className="text-white text-xl font-bold">
+                      <h3 className="text-foreground text-xl font-bold">
                         {getCurrentStep().title}
                       </h3>
                     </div>
@@ -770,7 +770,7 @@ const LearningModules = () => {
                         </button>
                         {currentStep < getCurrentGuide().steps.length ? (
                           <button
-                            className="bg-gradient-to-r from-blue-800 to-blue-900 text-white px-5 py-2 rounded-lg flex items-center hover:from-blue-900 hover:to-blue-950 shadow-md transform transition-transform hover:scale-105"
+                            className="bg-gradient-to-r from-blue-800 to-blue-900 text-foreground px-5 py-2 rounded-lg flex items-center hover:from-blue-900 hover:to-blue-950 shadow-md transform transition-transform hover:scale-105"
                             onClick={nextStep}
                           >
                             Next
@@ -789,7 +789,7 @@ const LearningModules = () => {
                           </button>
                         ) : (
                           <button
-                            className="bg-gradient-to-r from-blue-800 to-blue-900 text-white px-5 py-2 rounded-lg flex items-center hover:from-blue-900 hover:to-blue-950 shadow-md transform transition-transform hover:scale-105"
+                            className="bg-gradient-to-r from-blue-800 to-blue-900 text-foreground px-5 py-2 rounded-lg flex items-center hover:from-blue-900 hover:to-blue-950 shadow-md transform transition-transform hover:scale-105"
                             onClick={() => {
                               markModuleComplete(activeGuide);
                               if (activeGuide !== "period-underwear") {
@@ -829,7 +829,7 @@ const LearningModules = () => {
                     onClick={() => setCurrentStep(step.id)}
                     className={`flex-shrink-0 w-12 h-12 rounded-full flex items-center justify-center mr-3 transition-all duration-300 shadow-md ${
                       currentStep === step.id
-                        ? "bg-gradient-to-r from-blue-800 to-blue-900 text-white transform scale-110"
+                        ? "bg-gradient-to-r from-blue-800 to-blue-900 text-foreground transform scale-110"
                         : step.id < currentStep
                         ? "bg-blue-200 text-blue-900 border-2 border-blue-300"
                         : "bg-white text-blue-500 border border-blue-300"
@@ -877,7 +877,7 @@ const LearningModules = () => {
                     handleViewSimulator();
                     navigate("/stocks");
                   }}
-                  className="bg-gradient-to-r from-blue-800 to-blue-900 text-white px-6 py-3 rounded-lg hover:from-blue-900 hover:to-blue-950 shadow-lg transition-all duration-300 transform hover:scale-105"
+                  className="bg-gradient-to-r from-blue-800 to-blue-900 text-foreground px-6 py-3 rounded-lg hover:from-blue-900 hover:to-blue-950 shadow-lg transition-all duration-300 transform hover:scale-105"
                 >
                   View Simulator
                 </button>

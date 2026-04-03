@@ -6,7 +6,13 @@ import {
   ChartNoAxesCombined,
   Coins,
   LockKeyhole,
+  Medal,
+  ChevronRight,
+  Sparkles,
+  Trophy,
+  ArrowLeft
 } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 
 const FinancialLiteracyGame = () => {
   const [activeModule, setActiveModule] = useState(null);
@@ -33,7 +39,7 @@ const FinancialLiteracyGame = () => {
     {
       id: "budgeting",
       title: kidsMode ? "Piggy Bank Magic" : "Budgeting",
-      icon: kidsMode ? "🐷" : <HandCoins className="w-15 h-15" />,
+      icon: kidsMode ? "🐷" : <HandCoins size={32} />,
       color: kidsMode ? "#4CAF50" : "#0D47A1", // Green to Deep Blue
       lessons: [
         {
@@ -2052,595 +2058,363 @@ const FinancialLiteracyGame = () => {
     setQuizActive(false);
     setLessonCompleted(false);
   };
+  // --- Gamification Levels Helper ---
+  const getNextLevelXP = () => userLevel * (kidsMode ? 100 : 200);
+  const progressPercent = Math.min(100, Math.round((userPoints / getNextLevelXP()) * 100));
 
-  const getNextLevelPoints = () => {
-    return kidsMode ? 150 : 200;
+  const pageTransition = {
+    initial: { opacity: 0, y: 20 },
+    animate: { opacity: 1, y: 0 },
+    exit: { opacity: 0, y: -20 },
+    transition: { duration: 0.3 }
   };
 
   return (
-    <div className="min-h-screen bg-transparent pt-2 pl-3">
-      {/* Mode toggle */}
-      <div className="flex justify-end mb-4">
-        <div className="bg-white rounded-full p-1 shadow-md">
+    <div className="min-h-screen bg-transparent pb-16 px-4 md:px-8 max-w-6xl mx-auto">
+      
+      {/* Top Console */}
+      <div className="flex flex-col md:flex-row justify-between items-center mb-8 mt-6 gap-4">
+        
+        {/* User Stats Card */}
+        <div 
+          className="flex-1 w-full rounded-[24px] p-5 shadow-sm border flex items-center gap-5 transition-all"
+          style={{ background: "var(--card)", borderColor: "var(--border)" }}
+        >
+          <div className="relative">
+            <div 
+              className="w-16 h-16 rounded-[18px] flex items-center justify-center text-3xl shadow-sm z-10 relative"
+              style={{ background: kidsMode ? "linear-gradient(135deg, #f59e0b, #fbbf24)" : "var(--primary)", color: kidsMode ? "#fff" : "var(--primary-foreground)" }}
+            >
+              {kidsMode ? "🦁" : "lvl"}
+              {!kidsMode && <span className="absolute text-sm font-bold mt-1">{userLevel}</span>}
+            </div>
+            <div className="absolute inset-0 blur-md scale-110 opacity-40 -z-10" style={{ background: kidsMode ? "#f59e0b" : "var(--primary)" }} />
+          </div>
+
+          <div className="flex-1 min-w-0">
+            <h2 className="text-xl font-bold tracking-tight mb-1" style={{ color: "var(--foreground)"}}>
+              {kidsMode ? "Junior Explorer" : "Financial Architect"}
+            </h2>
+            <div className="flex items-center gap-3">
+              <div className="flex-1 h-2.5 rounded-full overflow-hidden" style={{ background: "var(--muted)" }}>
+                <motion.div 
+                  initial={{ width: 0 }}
+                  animate={{ width: `${progressPercent}%` }}
+                  transition={{ duration: 1, ease: "easeOut" }}
+                  className="h-full rounded-full"
+                  style={{ background: kidsMode ? "#f59e0b" : "var(--primary)" }}
+                />
+              </div>
+              <span className="text-xs font-bold whitespace-nowrap" style={{ color: "var(--muted-foreground)"}}>
+                {userPoints} / {getNextLevelXP()} XP
+              </span>
+            </div>
+          </div>
+
+          <div className="hidden sm:flex items-center gap-4 px-4 py-2 rounded-xl border ml-2" style={{ background: "var(--background)", borderColor: "var(--border)" }}>
+            <div className="flex flex-col items-center">
+              <Coins size={18} style={{ color: kidsMode ? "#f59e0b" : "var(--primary)" }} className="mb-0.5"/>
+              <span className="text-xs font-bold" style={{ color: "var(--foreground)" }}>{userPoints}</span>
+            </div>
+            <div className="w-px h-6 bg-[var(--border)]" />
+            <div className="flex flex-col items-center">
+              <Trophy size={18} style={{ color: kidsMode ? "#f43f5e" : "#8b5cf6" }} className="mb-0.5"/>
+              <span className="text-xs font-bold" style={{ color: "var(--foreground)" }}>{userBadges.length}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Mode Toggle Dropdown/Pill */}
+        <div 
+          className="flex p-1 rounded-2xl shadow-sm border items-center font-medium text-sm"
+          style={{ background: "var(--card)", borderColor: "var(--border)" }}
+        >
           <button
             onClick={() => setKidsMode(false)}
-            className={`px-4 py-2 rounded-full ${
-              !kidsMode ? "bg-blue-500 text-white" : "text-gray-600"
-            }`}
+            className="px-5 py-2.5 rounded-xl transition-all"
+            style={{ 
+              background: !kidsMode ? "var(--primary)" : "transparent",
+              color: !kidsMode ? "var(--primary-foreground)" : "var(--muted-foreground)",
+            }}
           >
-            Regular Mode
+            Standard
           </button>
           <button
             onClick={() => setKidsMode(true)}
-            className={`px-4 py-2 rounded-full ${
-              kidsMode ? "bg-yellow-400 text-white" : "text-gray-600"
-            }`}
+            className="px-5 py-2.5 rounded-xl transition-all flex items-center gap-1"
+            style={{ 
+              background: kidsMode ? "#f59e0b" : "transparent",
+              color: kidsMode ? "#fff" : "var(--muted-foreground)",
+            }}
           >
-            Kids Mode
+            Kids <Sparkles size={14}/>
           </button>
         </div>
       </div>
 
-      {/* Header with user stats */}
-      <div
-        className={`rounded-lg shadow-md p-4 mb-4 ${
-          kidsMode ? "bg-yellow-100 border-2 border-yellow-300" : "bg-white"
-        }`}
-      >
-        <div className="flex justify-between items-center">
-          <div className="flex items-center">
-            <div
-              className={`rounded-full w-12 h-12 flex items-center justify-center text-xl font-bold ${
-                kidsMode ? "bg-yellow-400 text-white" : "bg-blue-800 text-white"
-              }`}
-            >
-              {kidsMode ? "👑" : userLevel}
-            </div>
-            <div className="ml-4">
-              <h2 className="text-xl font-bold">
-                {kidsMode ? "Money Explorer" : "Financial Explorer"}
-              </h2>
-              <div className="w-48 bg-gray-200 rounded-full h-2.5 mt-2">
-                <div
-                  className={`h-2.5 rounded-full ${
-                    kidsMode ? "bg-yellow-400" : "bg-blue-800"
-                  }`}
-                  style={{
-                    width: `${(userPoints / getNextLevelPoints()) * 100}%`,
-                  }}
-                ></div>
-              </div>
-              <p className="text-sm text-gray-600 mt-1">
-                {kidsMode ? (
-                  <>
-                    {userPoints} gold coins collected!{" "}
-                    {userPoints >= 100 ? "🎉" : "✨"}
-                  </>
-                ) : (
-                  `${userPoints}/${getNextLevelPoints()} XP to Level ${
-                    userLevel + 1
-                  }`
-                )}
+      {/* Main Content Area */}
+      <AnimatePresence mode="wait">
+        
+        {/* 1. Journey Map (Modules Overview) */}
+        {!showLessonContent && !showModuleDetails && (
+          <motion.div key="map" {...pageTransition}>
+            <div className="mb-6">
+              <h1 className="text-3xl font-bold tracking-tight mb-2" style={{ color: "var(--foreground)"}}>
+                {kidsMode ? "Your Money Adventure" : "Learning Pathways"}
+              </h1>
+              <p style={{ color: "var(--muted-foreground)" }}>
+                {kidsMode ? "Pick a path and earn shiny coins!" : "Master financial concepts to accelerate your growth."}
               </p>
             </div>
-          </div>
-          <div className="flex items-center">
-            <div className="mr-4 text-center">
-              <div
-                className={`text-2xl ${
-                  kidsMode ? "text-yellow-500" : "text-yellow-500"
-                }`}
-              >
-                {kidsMode ? "💰" : "⭐"}
-              </div>
-              <p className="text-sm font-medium">
-                {userPoints} {kidsMode ? "Coins" : "Points"}
-              </p>
-            </div>
-            <div className="text-center">
-              <div
-                className={`text-2xl ${
-                  kidsMode ? "text-red-400" : "text-blue-500"
-                }`}
-              >
-                {kidsMode ? "🏅" : "🏆"}
-              </div>
-              <p className="text-sm font-medium">
-                {userBadges.length} {kidsMode ? "Stickers" : "Badges"}
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
 
-      {!showLessonContent && (
-        <>
-          {/* Learning journey map */}
-<div className={`rounded-lg shadow-md p-4 mb-4 ${kidsMode ? "bg-white border-2 border-blue-200" : "bg-white"}`}>
-  <h2 className="text-xl font-bold mb-4">
-    {kidsMode ? "Your Money Adventure" : "Your Financial Journey"}
-  </h2>
-  <div className="grid grid-cols-3 gap-4">
-    {modules.map((module) => {
-      // Calculate progress based on completed lessons
-      const completedLessons = module.lessons.filter(lesson => lesson.completed).length;
-      const totalLessons = module.lessons.length;
-      const progress = Math.round((completedLessons / totalLessons) * 100);
-      
-      return (
-        <div
-          key={module.id}
-          className="cursor-pointer transition-transform hover:scale-105"
-          onClick={() => handleModuleClick(module.id)}
-        >
-          <div
-            className={`rounded-lg p-4 h-40 flex flex-col items-center justify-center text-white relative overflow-hidden ${
-              kidsMode ? "border-4 border-white" : ""
-            }`}
-            style={{ backgroundColor: module.color }}
-          >
-            {/* Progress bar with visible background */}
-            <div className="absolute bottom-0 left-0 right-0 mx-4 mb-2 h-2 bg-white bg-opacity-30 rounded-full">
-              <div
-                className="h-full bg-white bg-opacity-90 rounded-full transition-all duration-500"
-                style={{ width: `${progress}%` }}
-              ></div>
-            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+              {modules.map((m) => {
+                const completed = m.lessons.filter(l => l.completed).length;
+                const total = m.lessons.length;
+                const progress = Math.round((completed / total) * 100);
 
-            <div className="text-4xl mb-2">{module.icon}</div>
-            <h3 className="text-lg font-bold text-center">
-              {module.title}
-            </h3>
-            <p className="text-sm mb-6">{progress}% Complete</p>
-            
-            {progress === 100 ? (
-              <div className="absolute top-2 right-2 text-yellow-300 text-xl">
-                ✓
-              </div>
-            ) : kidsMode && progress < 100 ? (
-              <div className="absolute top-2 right-2 text-white text-sm">
-                {progress > 0 ? "Keep going!" : "Start now!"}
-              </div>
-            ) : null}
-          </div>
-        </div>
-      );
-    })}
-  </div>
-</div>
-
-          {/* Module details */}
-          {showModuleDetails && activeModule && (
-            <div
-              className={`rounded-lg shadow-md p-4 mb-4 ${
-                kidsMode ? "bg-blue-50 border-2 border-blue-200" : "bg-white"
-              }`}
-            >
-              <div className="flex items-center mb-4">
-                <div
-                  className={`w-10 h-10 rounded-full flex items-center justify-center text-white mr-3 ${
-                    kidsMode ? "animate-bounce" : ""
-                  }`}
-                  style={{
-                    backgroundColor: modules.find((m) => m.id === activeModule)
-                      .color,
-                  }}
-                >
-                  {modules.find((m) => m.id === activeModule).icon}
-                </div>
-                <h2 className="text-xl font-bold">
-                  {modules.find((m) => m.id === activeModule).title}{" "}
-                  {kidsMode ? "Adventures" : "Lessons"}
-                </h2>
-              </div>
-
-              <div className="space-y-3">
-                {modules
-                  .find((m) => m.id === activeModule)
-                  .lessons.map((lesson, index) => (
-                    <div
-                      key={index}
-                      className={`p-3 border rounded-lg flex items-center ${
-                        lesson.locked
-                          ? "bg-gray-100"
-                          : "hover:bg-gray-50 cursor-pointer"
-                      } ${kidsMode ? "border-blue-200" : ""}`}
-                      onClick={() => handleLessonClick(lesson)}
-                    >
-                      <div className="mr-3">
-                        {lesson.completed ? (
-                          <div
-                            className={`w-8 h-8 rounded-full flex items-center justify-center text-white ${
-                              kidsMode
-                                ? "bg-green-400 animate-pulse"
-                                : "bg-green-500"
-                            }`}
-                          >
-                            ✓
-                          </div>
-                        ) : lesson.locked ? (
-                          <div className="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center text-white">
-                            🔒
-                          </div>
-                        ) : (
-                          <div
-                            className={`w-8 h-8 rounded-full flex items-center justify-center text-white ${
-                              kidsMode ? "bg-blue-400" : "bg-blue-500"
-                            }`}
-                          >
-                            {index + 1}
+                return (
+                  <motion.button 
+                    key={m.id}
+                    whileHover={{ y: -4, scale: 1.01 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => handleModuleClick(m.id)}
+                    className="relative text-left rounded-[28px] p-6 shadow-sm border transition-all overflow-hidden group"
+                    style={{ background: "var(--card)", borderColor: "var(--border)" }}
+                  >
+                    <div 
+                      className="absolute inset-0 opacity-[0.03] group-hover:opacity-[0.08] transition-opacity top-0 left-0"
+                      style={{ background: m.color }}
+                    />
+                    <div className="relative z-10 flex flex-col h-full">
+                      <div className="flex justify-between items-start mb-6">
+                        <div 
+                          className="w-14 h-14 rounded-2xl flex items-center justify-center text-3xl shadow-sm border"
+                          style={{ background: "var(--background)", borderColor: "var(--border)" }}
+                        >
+                          {m.icon}
+                        </div>
+                        {progress === 100 && (
+                          <div className="w-8 h-8 rounded-full flex items-center justify-center bg-green-500/10 text-green-500">
+                            <Medal size={16}/>
                           </div>
                         )}
                       </div>
-                      <div className="flex-grow">
-                        <h3
-                          className={`font-medium ${
-                            lesson.locked ? "text-gray-500" : ""
-                          }`}
-                        >
-                          {lesson.title}
-                        </h3>
-                        <div className="flex items-center mt-1">
-                          <div
-                            className={`text-sm mr-2 ${
-                              kidsMode ? "text-yellow-600" : "text-yellow-500"
-                            }`}
-                          >
-                            {kidsMode ? "🎖️" : "⭐"} {lesson.points}{" "}
-                            {kidsMode ? "coins" : "points"}
-                          </div>
-                          {lesson.completed && (
-                            <div
-                              className={`text-sm ${
-                                kidsMode ? "text-green-600" : "text-green-500"
-                              }`}
-                            >
-                              Completed
-                            </div>
-                          )}
+                      
+                      <h3 className="text-xl font-bold tracking-tight mb-2" style={{ color: "var(--foreground)"}}>
+                        {m.title}
+                      </h3>
+                      
+                      <div className="mt-auto pt-6">
+                        <div className="flex justify-between text-xs font-bold mb-2 uppercase tracking-wider" style={{ color: "var(--muted-foreground)"}}>
+                          <span>Progress</span>
+                          <span>{progress}%</span>
+                        </div>
+                        <div className="h-1.5 w-full rounded-full overflow-hidden" style={{ background: "var(--muted)"}}>
+                          <motion.div 
+                            initial={{ width: 0 }}
+                            animate={{ width: `${progress}%` }}
+                            transition={{ duration: 1 }}
+                            className="h-full rounded-full"
+                            style={{ background: kidsMode && progress < 100 ? "#f59e0b" : "var(--primary)" }}
+                          />
                         </div>
                       </div>
-                      {!lesson.locked && !lesson.completed && (
-                        <div
-                          className={`px-3 py-1 rounded text-sm ${
-                            kidsMode
-                              ? "bg-blue-400 hover:bg-blue-500 text-white"
-                              : "bg-blue-500 hover:bg-blue-600 text-white"
-                          }`}
-                        >
-                          {kidsMode ? "Explore!" : "Start"}
-                        </div>
-                      )}
                     </div>
-                  ))}
-              </div>
+                  </motion.button>
+                );
+              })}
             </div>
-          )}
 
-          {/* Achievements and badges */}
-          <div
-            className={`rounded-xl shadow-lg p-6 mb-6 transition-all duration-300 ${
-              kidsMode
-                ? "bg-gradient-to-br from-yellow-100 to-orange-100 border-4 border-yellow-300"
-                : "bg-gradient-to-br from-gray-50 to-white border border-gray-200"
-            }`}
-          >
-            <h2
-              className={`text-2xl font-bold mb-6 tracking-tight ${
-                kidsMode ? "text-orange-600" : "text-black"
-              }`}
-            >
-              {kidsMode ? "✨ Your Treasure Chest ✨" : "Your Achievements"}
-            </h2>
-
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-6">
-              {userBadges.map((badge, index) => (
-                <div
-                  key={index}
-                  className="text-center transform hover:scale-105 transition-transform duration-200"
-                >
-                  <div
-                    className={`w-16 h-16 mx-auto rounded-full flex items-center justify-center text-3xl shadow-md ${
-                      kidsMode
-                        ? "bg-gradient-to-br from-yellow-300 to-orange-300 "
-                        : "bg-gradient-to-br from-blue-600 to-blue-300 "
-                    }`}
-                  >
-                    {kidsMode
-                      ? index === 0
-                        ? "🏅"
-                        : "🌟"
-                      : index === 0
-                      ? "💰"
-                      : "🏦"}
+            {/* Badges / Achievements Row */}
+            <div className="rounded-[28px] p-6 border shadow-sm" style={{ background: "var(--card)", borderColor: "var(--border)" }}>
+              <h2 className="text-xl font-bold mb-6 tracking-tight" style={{ color: "var(--foreground)" }}>
+                {kidsMode ? "Treasure Chest" : "Trophy Room"}
+              </h2>
+              <div className="flex flex-wrap gap-4">
+                {userBadges.map((badge, i) => (
+                  <div key={i} className="flex flex-col items-center justify-center p-4 rounded-2xl border" style={{ background: "var(--background)", borderColor: "var(--border)", minWidth: "120px" }}>
+                    <div className="w-12 h-12 rounded-full flex items-center justify-center text-2xl shadow-sm mb-3">
+                       {kidsMode ? (i === 0 ? "🏅" : "🌟") : (i === 0 ? "💰" : "🏦")}
+                    </div>
+                    <p className="text-[11px] font-bold uppercase tracking-wider text-center" style={{ color: "var(--muted-foreground)"}}>{badge}</p>
                   </div>
-                  <p
-                    className={`mt-3 font-semibold text-sm ${
-                      kidsMode ? "text-orange-700" : "text-gray-700"
-                    }`}
-                  >
-                    {badge}
-                  </p>
+                ))}
+                <div className="flex flex-col items-center justify-center p-4 rounded-2xl border border-dashed opacity-50" style={{ borderColor: "var(--border)", minWidth: "120px" }}>
+                  <div className="w-12 h-12 rounded-full flex items-center justify-center text-xl mb-3" style={{ background: "var(--muted)", color: "var(--muted-foreground)" }}>
+                    <LockKeyhole size={16}/>
+                  </div>
+                  <p className="text-[11px] font-bold uppercase tracking-wider text-center" style={{ color: "var(--muted-foreground)"}}>Locked</p>
                 </div>
-              ))}
-
-              <div className="text-center group">
-                <div className="w-16 h-16 mx-auto bg-gray-200 rounded-full flex items-center justify-center text-2xl shadow-inner transition-all duration-300 group-hover:bg-gray-300">
-                  <span className="group-hover:animate-spin">?</span>
-                </div>
-                <p
-                  className={`mt-3 font-semibold text-sm ${
-                    kidsMode ? "text-orange-600" : "text-gray-500"
-                  }`}
-                >
-                  {kidsMode ? "More Treasures Await!" : "Unlock More!"}
-                </p>
               </div>
             </div>
-          </div>
-        </>
-      )}
+          </motion.div>
+        )}
 
-      {/* Lesson content view */}
-      {showLessonContent && activeLesson && (
-        <div
-          className={`rounded-lg shadow-md p-4 mb-4 ${
-            kidsMode ? "bg-white border-4 border-blue-300" : "bg-white"
-          }`}
-        >
-          {/* Lesson header */}
-          <div className="flex items-center justify-between mb-6">
-            <h2
-              className={`text-2xl font-bold ${
-                kidsMode ? "text-blue-600" : ""
-              }`}
+        {/* 2. Module Details (Lesson Selection) */}
+        {!showLessonContent && showModuleDetails && activeModule && (
+          <motion.div key="details" {...pageTransition}>
+            <button 
+              onClick={() => setShowModuleDetails(false)}
+              className="flex items-center gap-2 mb-6 px-4 py-2 rounded-lg text-sm font-semibold transition-colors hover:bg-[var(--accent)]"
+              style={{ color: "var(--muted-foreground)" }}
             >
-              {activeLesson.title}
-            </h2>
-            <button
-              onClick={() => {
-                setShowLessonContent(false);
-                setShowModuleDetails(true);
-              }}
-              className={`px-4 py-2 rounded-lg ${
-                kidsMode
-                  ? "bg-blue-400 hover:bg-blue-500 text-white"
-                  : "bg-gray-200 hover:bg-gray-300 text-gray-700"
-              }`}
-            >
-              {kidsMode ? "← Back" : "Back to Lessons"}
+              <ArrowLeft size={16}/> Back
             </button>
-          </div>
+            
+            <div className="mb-6">
+              <h2 className="text-3xl font-bold tracking-tight mb-2" style={{ color: "var(--foreground)"}}>
+                {modules.find((m) => m.id === activeModule).title} {kidsMode ? "Adventures" : "Syllabus"}
+              </h2>
+            </div>
+            
+            <div className="space-y-4">
+              {modules.find((m) => m.id === activeModule).lessons.map((lesson, idx) => (
+                <motion.div 
+                  key={idx}
+                  whileHover={{ x: lesson.locked ? 0 : 6 }}
+                  onClick={() => handleLessonClick(lesson)}
+                  className={`flex items-center p-5 rounded-[20px] transition-all border ${lesson.locked ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:shadow-md'}`}
+                  style={{ background: lesson.locked ? "transparent" : "var(--card)", borderColor: "var(--border)" }}
+                >
+                  <div className="w-12 h-12 rounded-xl flex flex-shrink-0 items-center justify-center mr-5 font-bold" style={{ background: lesson.completed ? "var(--primary)" : "var(--muted)", color: lesson.completed ? "var(--primary-foreground)" : "var(--foreground)"}}>
+                    {lesson.completed ? "✓" : lesson.locked ? <LockKeyhole size={18}/> : idx + 1}
+                  </div>
+                  
+                  <div className="flex-1 min-w-0 pr-4">
+                    <h3 className="text-lg font-bold mb-1 truncate" style={{ color: "var(--foreground)"}}>{lesson.title}</h3>
+                    <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--muted-foreground)"}}>
+                      <Sparkles size={12}/> {lesson.points} XP
+                    </div>
+                  </div>
+                  
+                  {!lesson.locked && (
+                    <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: "var(--accent)", color: "var(--foreground)" }}>
+                      <ChevronRight size={18}/>
+                    </div>
+                  )}
+                </motion.div>
+              ))}
+            </div>
+          </motion.div>
+        )}
 
-          {/* Quiz mode */}
-          {quizActive ? (
-            <div
-              className={`p-6 rounded-lg ${
-                kidsMode ? "bg-blue-100 border-2 border-blue-300" : "bg-blue-50"
-              }`}
+        {/* 3. Lesson or Quiz Content */}
+        {showLessonContent && activeLesson && (
+          <motion.div key="lesson" {...pageTransition}>
+            <button 
+              onClick={() => { setShowLessonContent(false); setShowModuleDetails(true); }}
+              className="flex items-center gap-2 mb-6 px-4 py-2 rounded-lg text-sm font-semibold transition-colors hover:bg-[var(--accent)]"
+              style={{ color: "var(--muted-foreground)" }}
             >
-              {!lessonCompleted ? (
-                <div>
-                  <h3
-                    className={`text-xl font-bold mb-4 ${
-                      kidsMode ? "text-blue-700" : ""
-                    }`}
-                  >
-                    {kidsMode
-                      ? `Question ${currentQuizQuestion + 1} of ${
-                          activeLesson.content.quiz.length
-                        }`
-                      : `Question ${currentQuizQuestion + 1} of ${
-                          activeLesson.content.quiz.length
-                        }`}
-                  </h3>
-                  <div className="mb-6">
-                    <p
-                      className={`text-lg mb-4 ${kidsMode ? "font-bold" : ""}`}
-                    >
-                      {activeLesson.content.quiz[currentQuizQuestion].question}
-                    </p>
-                    <div className="space-y-3">
-                      {activeLesson.content.quiz[
-                        currentQuizQuestion
-                      ].options.map((option, index) => (
-                        <div
-                          key={index}
-                          onClick={() =>
-                            handleQuizAnswer(currentQuizQuestion, index)
-                          }
-                          className={`p-3 border rounded-lg cursor-pointer transition-colors ${
-                            kidsMode
-                              ? "hover:bg-blue-200 border-blue-300 bg-white"
-                              : "hover:bg-blue-100"
-                          }`}
-                        >
-                          {option}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                  <div
-                    className={`flex justify-between items-center ${
-                      kidsMode ? "text-blue-600" : ""
-                    }`}
-                  >
-                    <div>
-                      {kidsMode
-                        ? `Question ${currentQuizQuestion + 1} of ${
-                            activeLesson.content.quiz.length
-                          }`
-                        : `Question ${currentQuizQuestion + 1} of ${
-                            activeLesson.content.quiz.length
-                          }`}
-                    </div>
-                    {kidsMode && (
-                      <div className="flex">
-                        {Array.from({
-                          length: activeLesson.content.quiz.length,
-                        }).map((_, i) => (
-                          <div
-                            key={i}
-                            className={`w-3 h-3 rounded-full mx-1 ${
-                              i <= currentQuizQuestion
-                                ? "bg-blue-400"
-                                : "bg-blue-200"
-                            }`}
-                          ></div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
+              <ArrowLeft size={16}/> Back
+            </button>
+
+            <div className="rounded-[28px] border shadow-sm overflow-hidden" style={{ background: "var(--card)", borderColor: "var(--border)" }}>
+              {quizActive ? (
+                // --- QUIZ UI ---
+                <div className="p-6 md:p-6">
+                   {!lessonCompleted ? (
+                     <AnimatePresence mode="wait">
+                       <motion.div
+                         key={currentQuizQuestion}
+                         initial={{ opacity: 0, x: 20 }}
+                         animate={{ opacity: 1, x: 0 }}
+                         exit={{ opacity: 0, x: -20 }}
+                       >
+                         <div className="flex items-center gap-2 mb-6">
+                           {activeLesson.content.quiz.map((_, i) => (
+                             <div 
+                               key={i} 
+                               className="h-1.5 flex-1 rounded-full transition-all"
+                               style={{ background: i <= currentQuizQuestion ? "var(--primary)" : "var(--muted)" }}
+                             />
+                           ))}
+                         </div>
+                         
+                         <h3 className="text-2xl md:text-3xl font-bold tracking-tight mb-8 leading-tight" style={{ color: "var(--foreground)"}}>
+                           {activeLesson.content.quiz[currentQuizQuestion].question}
+                         </h3>
+                         
+                         <div className="space-y-4">
+                           {activeLesson.content.quiz[currentQuizQuestion].options.map((opt, i) => (
+                             <motion.button
+                               key={i}
+                               whileHover={{ scale: 1.01 }}
+                               whileTap={{ scale: 0.99 }}
+                               onClick={() => handleQuizAnswer(currentQuizQuestion, i)}
+                               className="w-full text-left p-5 rounded-[18px] border font-bold text-[15px] transition-all hover:border-[var(--primary)]"
+                               style={{ background: "var(--background)", borderColor: "var(--border)", color: "var(--foreground)" }}
+                             >
+                               {opt}
+                             </motion.button>
+                           ))}
+                         </div>
+                       </motion.div>
+                     </AnimatePresence>
+                   ) : (
+                     <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="flex flex-col items-center text-center py-10">
+                       <div className="text-7xl mb-6">{calculateQuizScore() >= 70 ? (kidsMode ? "🎊" : "🏆") : "👀"}</div>
+                       <h2 className="text-3xl font-bold mb-4" style={{ color: "var(--foreground)" }}>{calculateQuizScore() >= 70 ? "Excellent Work!" : "Almost There"}</h2>
+                       <p className="text-lg font-medium mb-6" style={{ color: "var(--muted-foreground)" }}>Score: {calculateQuizScore()}% — {calculateQuizScore() >= 70 ? `You earned ${activeLesson.points} XP!` : "Review the material and try again."}</p>
+                       <button
+                         onClick={completeLessonAndReturn}
+                         className="px-8 py-4 rounded-[16px] font-bold shadow-md transition-all hover:scale-105"
+                         style={{ background: "var(--primary)", color: "var(--primary-foreground)" }}
+                       >
+                         {kidsMode ? "Keep Exploring" : "Continue"}
+                       </button>
+                     </motion.div>
+                   )}
                 </div>
               ) : (
-                <div className="text-center">
-                  <div className="text-4xl mb-4">{kidsMode ? "🎊" : "🎉"}</div>
-                  <h3
-                    className={`text-2xl font-bold mb-2 ${
-                      kidsMode ? "text-blue-600" : ""
-                    }`}
-                  >
-                    {kidsMode ? "Awesome Job!" : "Quiz Completed!"}
-                  </h3>
-                  <p className="text-lg mb-4">
-                    {kidsMode ? (
-                      <>
-                        You got {calculateQuizScore()}% right!
-                        <br />
-                        {calculateQuizScore() >= 70
-                          ? "You're a money whiz!"
-                          : "Good try! You can try again!"}
-                      </>
-                    ) : (
-                      `Your score: ${calculateQuizScore()}%`
-                    )}
-                  </p>
-                  {calculateQuizScore() >= 70 ? (
-                    <div>
-                      <p
-                        className={`font-bold mb-4 ${
-                          kidsMode ? "text-green-600 text-xl" : "text-green-600"
-                        }`}
-                      >
-                        {kidsMode
-                          ? "🏆 You earned a badge!"
-                          : "Congratulations! You passed the quiz."}
-                      </p>
-                      <p className="mb-4">
-                        {kidsMode
-                          ? `You've collected ${activeLesson.points} shiny coins!`
-                          : `You've earned ${activeLesson.points} points!`}
-                      </p>
-                    </div>
-                  ) : (
-                    <p
-                      className={`mb-4 ${
-                        kidsMode ? "text-red-500 font-bold" : "text-red-600"
-                      }`}
+                // --- LESSON READING UI ---
+                <div>
+                  <div className="p-6 md:p-6 border-b" style={{ borderColor: "var(--border)" }}>
+                    <h1 className="text-3xl md:text-4xl font-bold tracking-tight mb-4" style={{ color: "var(--foreground)" }}>{activeLesson.title}</h1>
+                    <p className="text-lg leading-relaxed font-medium" style={{ color: "var(--muted-foreground)" }}>{activeLesson.content.intro}</p>
+                  </div>
+                  
+                  <div className="p-6 md:p-6 space-y-6">
+                    {activeLesson.content.sections.map((sec, i) => (
+                      <div key={i} className="flex flex-col md:flex-row gap-4 items-start">
+                        {kidsMode && sec.image && (
+                          <div className="w-24 h-24 flex-shrink-0 bg-white rounded-2xl p-2 shadow-sm border border-[var(--border)] hidden md:block">
+                            <img src={sec.image} alt="visual" className="w-full h-full object-contain mix-blend-multiply" />
+                          </div>
+                        )}
+                        <div className="flex-1">
+                          <h3 className="text-xl font-bold mb-4" style={{ color: "var(--foreground)" }}>{sec.title}</h3>
+                          <ul className="space-y-3">
+                            {sec.points.map((pt, j) => (
+                              <li key={j} className="flex items-start gap-3 text-[15px] leading-relaxed" style={{ color: "var(--foreground)" }}>
+                                <div className="mt-1 w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: "var(--primary)" }} />
+                                <span>{pt}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  
+                  <div className="p-6 border-t flex justify-end" style={{ background: "var(--background)", borderColor: "var(--border)" }}>
+                    <motion.button
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={startQuiz}
+                      className="px-8 py-4 rounded-[16px] font-bold flex items-center gap-2 shadow-sm"
+                      style={{ background: kidsMode ? "#f59e0b" : "var(--primary)", color: kidsMode ? "#fff" : "var(--primary-foreground)" }}
                     >
-                      {kidsMode
-                        ? "Try again to collect your coins!"
-                        : "You need 70% to pass. Try reviewing the lesson and taking the quiz again."}
-                    </p>
-                  )}
-                  <button
-                    onClick={completeLessonAndReturn}
-                    className={`px-6 py-2 rounded-lg mt-4 font-bold ${
-                      kidsMode
-                        ? "bg-blue-500 hover:bg-blue-600 text-white text-lg"
-                        : "bg-blue-500 hover:bg-blue-600 text-white"
-                    }`}
-                  >
-                    {kidsMode ? "Keep Exploring!" : "Continue"}
-                  </button>
+                      {kidsMode ? "Start Challenge!" : "Test Your Knowledge"} <ChevronRight size={18}/>
+                    </motion.button>
+                  </div>
                 </div>
               )}
             </div>
-          ) : (
-            <>
-              {/* Lesson content with bullet points */}
-              <div className="mb-6">
-                <p
-                  className={`text-lg mb-6 p-4 rounded-lg ${
-                    kidsMode
-                      ? "bg-blue-100 border-2 border-blue-200 font-medium"
-                      : "bg-blue-50"
-                  }`}
-                >
-                  {activeLesson.content.intro}
-                </p>
-                <div className="space-y-6">
-                  {activeLesson.content.sections.map((section, index) => (
-                    <div
-                      key={index}
-                      className={`p-4 rounded-lg ${
-                        kidsMode
-                          ? "bg-white border-2 border-blue-200 shadow-sm"
-                          : "bg-gray-50"
-                      }`}
-                    >
-                      <h3
-                        className={`font-bold mb-3 ${
-                          kidsMode ? "text-blue-600 text-xl" : "text-lg"
-                        }`}
-                      >
-                        {section.title}
-                      </h3>
-                      {kidsMode && section.image && (
-                        <img
-                          src={section.image}
-                          alt={section.title}
-                          className="w-24 h-24 mx-auto mb-3"
-                        />
-                      )}
-                      <ul
-                        className={`space-y-2 ${
-                          kidsMode ? "list-none pl-0" : "list-disc pl-5"
-                        }`}
-                      >
-                        {section.points.map((point, pointIndex) => (
-                          <li
-                            key={pointIndex}
-                            className={`${
-                              kidsMode
-                                ? "flex items-start mb-2"
-                                : "text-gray-700"
-                            }`}
-                          >
-                            {kidsMode && (
-                              <span className="bg-blue-100 text-blue-600 rounded-full w-6 h-6 flex items-center justify-center mr-2 mt-1">
-                                {pointIndex + 1}
-                              </span>
-                            )}
-                            <span className={kidsMode ? "flex-1" : ""}>
-                              {point}
-                            </span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <button
-                onClick={startQuiz}
-                className={`w-full px-6 py-3 rounded-lg mt-4 font-bold ${
-                  kidsMode
-                    ? "bg-yellow-400 hover:bg-yellow-500 text-white text-xl animate-bounce"
-                    : "bg-blue-500 hover:bg-blue-600 text-white"
-                }`}
-              >
-                {kidsMode
-                  ? `Take Quiz to Earn ${activeLesson.points} Shiny Coins!`
-                  : `Take Quiz to Earn ${activeLesson.points} Points`}
-              </button>
-            </>
-          )}
-        </div>
-      )}
-
-      {/* Footer with resources */}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

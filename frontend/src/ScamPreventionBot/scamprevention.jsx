@@ -1,390 +1,268 @@
 import React, { useState, useEffect, useRef } from "react";
+// eslint-disable-next-line no-unused-vars
+import { motion, AnimatePresence } from "framer-motion";
+import { ShieldAlert, ShieldCheck, Send, StopCircle, RefreshCw, Sparkles, ChevronRight, AlertTriangle } from "lucide-react";
+
+const MdText = ({ children }) => {
+  const lines = (children || "").split("\n");
+  return (
+    <div className="space-y-1">
+      {lines.map((line, i) => {
+        if (!line.trim()) return <div key={i} className="h-2" />;
+        const heading = line.match(/^(#{1,3})\s+(.+)/);
+        if (heading) return <p key={i} className="font-bold text-[15px] mt-2" dangerouslySetInnerHTML={{ __html: fmt(heading[2]) }} />;
+        const bullet = line.match(/^[-*]\s+(.+)/);
+        if (bullet) return <p key={i} className="flex gap-2"><span>•</span><span dangerouslySetInnerHTML={{ __html: fmt(bullet[1]) }} /></p>;
+        return <p key={i} dangerouslySetInnerHTML={{ __html: fmt(line) }} />;
+      })}
+    </div>
+  );
+};
+const fmt = (t) => t.replace(/`([^`]+)`/g, '<code style="background:rgba(255,255,255,0.08);font-family:monospace;padding:1px 4px;border-radius:3px">$1</code>').replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>').replace(/\*([^*]+)\*/g, '<em>$1</em>');
+
+const SUGGESTIONS = [
+  "Analyze this crypto DM I received",
+  "Is this lottery email a scam?",
+  "KYC update request from my bank",
+  "Someone asked for my OTP over phone",
+];
+
+const getRiskBadge = (text) => {
+  const t = text.toLowerCase();
+  if (t.includes("risk level: high") || t.includes("high risk")) return { label: "HIGH RISK", color: "#ef4444", bg: "rgba(239,68,68,0.1)", border: "rgba(239,68,68,0.25)" };
+  if (t.includes("risk level: medium") || t.includes("medium risk")) return { label: "MEDIUM RISK", color: "#f59e0b", bg: "rgba(245,158,11,0.1)", border: "rgba(245,158,11,0.25)" };
+  if (t.includes("risk level: low") || t.includes("low risk")) return { label: "LOW RISK", color: "#10b981", bg: "rgba(16,185,129,0.1)", border: "rgba(16,185,129,0.25)" };
+  return null;
+};
 
 const ChatBot = () => {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [currentResponse, setCurrentResponse] = useState("");
-  const [displayedText, setDisplayedText] = useState("");
-  const [charIndex, setCharIndex] = useState(0);
-  const [isThinking, setIsThinking] = useState(false);
-
-  const chatContainerRef = useRef(null);
+  const bottomRef = useRef(null);
   const inputRef = useRef(null);
-  const typingSpeed = 20; // milliseconds per character (faster than word-by-word)
 
-  // Character-by-character animation
   useEffect(() => {
-    if (currentResponse && charIndex < currentResponse.length) {
-      const timer = setTimeout(() => {
-        setDisplayedText(currentResponse.substring(0, charIndex + 1));
-        setCharIndex(charIndex + 1);
-      }, typingSpeed);
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, isLoading]);
 
-      return () => clearTimeout(timer);
-    } else if (currentResponse && charIndex === currentResponse.length) {
-      // Done typing, add to messages
-      setMessages((prev) => [
-        ...prev.slice(0, -1),
-        {
-          text: currentResponse,
-          isUser: false,
-          timestamp: new Date().toLocaleTimeString([], {
-            hour: "2-digit",
-            minute: "2-digit",
-          }),
-        },
-      ]);
-      setCurrentResponse("");
-      setCharIndex(0);
-    }
-  }, [currentResponse, charIndex]);
-
-  // Auto-scroll
   useEffect(() => {
-    if (chatContainerRef.current) {
-      chatContainerRef.current.scrollTop =
-        chatContainerRef.current.scrollHeight;
-    }
-  }, [messages, displayedText]);
-
-  // Focus on input when loading stops
-  useEffect(() => {
-    if (!isLoading && inputRef.current) {
-      inputRef.current.focus();
-    }
+    if (!isLoading) inputRef.current?.focus();
   }, [isLoading]);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!input.trim()) return;
-
-    // Add user message with timestamp
-    const userMessage = {
-      text: input,
-      isUser: true,
-      timestamp: new Date().toLocaleTimeString([], {
-        hour: "2-digit",
-        minute: "2-digit",
-      }),
-    };
-    setMessages((prev) => [...prev, userMessage]);
-
-    // Clear input and start loading
+  const sendMessage = async (text) => {
+    if (!text.trim() || isLoading) return;
+    const userMsg = { role: "user", content: text, time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) };
+    setMessages((prev) => [...prev, userMsg]);
     setInput("");
     setIsLoading(true);
 
-    // Simulate "thinking" state before typing
-    setIsThinking(true);
-
     try {
-      // Simulate network delay (remove in production)
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-
-      const response = await fetch(
-        "https://hackit-fin-tech-backend.vercel.app/api/scamDetectorText",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ prompt: input }),
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error("Network response was not ok");
-      }
-
+      const response = await fetch("http://localhost:5000/api/scam-detect", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt: text }),
+      });
+      if (!response.ok) throw new Error("Network Error");
       const data = await response.json();
-
-      // Stop thinking, start typing
-      setIsThinking(false);
-
-      // Add placeholder for bot response that will be filled in character by character
       setMessages((prev) => [
         ...prev,
-        {
-          text: "",
-          isUser: false,
-          timestamp: new Date().toLocaleTimeString([], {
-            hour: "2-digit",
-            minute: "2-digit",
-          }),
-        },
+        { role: "bot", content: data.response || "No response received.", time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) },
       ]);
-
-      setCurrentResponse(
-        data.response || "I'm sorry, I couldn't process that request."
-      );
-    } catch (error) {
-      console.error("Error:", error);
-      setIsThinking(false);
+    } catch {
       setMessages((prev) => [
         ...prev,
-        {
-          text: "Sorry, there was an error processing your request.",
-          isUser: false,
-          timestamp: new Date().toLocaleTimeString([], {
-            hour: "2-digit",
-            minute: "2-digit",
-          }),
-        },
+        { role: "bot", content: "⚠️ Could not connect to the AI scanner. Ensure the backend is running on `localhost:5000`.", time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) },
       ]);
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Enhanced formatting function
-  const formatText = (text) => {
-    if (!text) return "";
-
-    // Handle bold text (**text**)
-    text = text.replace(
-      /\*\*(.*?)\*\*/g,
-      '<strong class="font-bold">$1</strong>'
-    );
-
-    // Handle italic text (*text*)
-    text = text.replace(/\*(.*?)\*/g, '<em class="italic">$1</em>');
-
-    // Handle code blocks (```code```)
-    text = text.replace(
-      /```([\s\S]*?)```/g,
-      '<pre class="bg-gray-800 text-gray-200 p-3 rounded-md my-2 overflow-x-auto font-mono text-sm">$1</pre>'
-    );
-
-    // Handle inline code (`code`)
-    text = text.replace(
-      /`([^`]+)`/g,
-      '<code class="bg-gray-200 px-1 rounded font-mono text-sm">$1</code>'
-    );
-
-    // Add spacing between paragraphs (double line breaks)
-    text = text.replace(/\n\n/g, '<div class="my-4"></div>');
-
-    // Add spacing for single line breaks
-    text = text.replace(/\n/g, '<div class="my-2"></div>');
-
-    return text;
-  };
-
-  // Generate typing indicator with random periods
-  const TypingIndicator = () => {
-    const [dots, setDots] = useState(".");
-
-    useEffect(() => {
-      const interval = setInterval(() => {
-        setDots((prev) => (prev.length < 3 ? prev + "." : "."));
-      }, 500);
-
-      return () => clearInterval(interval);
-    }, []);
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    sendMessage(input);
   };
 
   return (
-    <div className="flex flex-col h-screen bg-gradient-to-br from-blue-50 to-indigo-50">
+    <div className="flex flex-col h-full" style={{ background: "transparent" }}>
+
       {/* Header */}
-      <div className="flex-none p-4 bg-gradient-to-r from-blue-600 to-blue-800 text-white shadow-md">
-        <div className="max-w-4xl mx-auto flex items-center">
-          <div className="w-8 h-8 rounded-full bg-white text-blue-600 flex items-center justify-center mr-3">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-              fill="currentColor"
-              className="w-5 h-5"
-            >
-              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z" />
-            </svg>
+      <div
+        className="flex-shrink-0 flex items-center justify-between px-6 py-4 z-10"
+        style={{ background: "rgba(6,6,14,0.65)", backdropFilter: "blur(24px)", borderBottom: "1px solid rgba(255,255,255,0.055)" }}
+      >
+        <div className="flex items-center gap-3.5">
+          <div
+            className="w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0"
+            style={{ background: "rgba(59,130,246,0.1)", border: "1px solid rgba(59,130,246,0.2)", boxShadow: "0 0 20px rgba(59,130,246,0.1)" }}
+          >
+            <ShieldAlert size={22} style={{ color: "#3b82f6" }} strokeWidth={2} />
           </div>
-          <h1 className="text-xl font-bold">Scam Prevention Bot</h1>
+          <div>
+            <h1 className="text-[17px] font-bold tracking-tight" style={{ color: "rgba(255,255,255,0.9)", letterSpacing: "-0.02em" }}>
+              Scam Prevention <span style={{ color: "#3b82f6" }}>AI</span>
+            </h1>
+            <p className="text-[11px] font-bold uppercase tracking-[0.18em] flex items-center gap-1.5" style={{ color: "rgba(255,255,255,0.3)" }}>
+              <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: "#3b82f6", boxShadow: "0 0 6px #3b82f6" }} />
+              Threat Detection Active
+            </p>
+          </div>
         </div>
+        {messages.length > 0 && (
+          <button
+            onClick={() => setMessages([])}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-[12px] font-semibold transition-all"
+            style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.45)" }}
+            onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.08)"}
+            onMouseLeave={e => e.currentTarget.style.background = "rgba(255,255,255,0.04)"}
+          >
+            <RefreshCw size={13} /> Clear
+          </button>
+        )}
       </div>
 
-      {/* Chat Container */}
-      <div className="flex-grow overflow-hidden">
-        <div
-          ref={chatContainerRef}
-          className="h-full overflow-y-auto p-4 md:p-6"
-        >
-          <div className="max-w-4xl mx-auto">
-            {/* Welcome message */}
-            {messages.length === 0 && (
-              <div className="flex flex-col items-center justify-center h-full text-center p-6">
-                <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-4">
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                    className="w-8 h-8 text-blue-600"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"
-                    />
-                  </svg>
-                </div>
-                <h2 className="text-xl font-semibold text-gray-800 mb-2">
-                  How can I help you today?
-                </h2>
-                <p className="text-gray-500 max-w-md mb-6">
-                  Ask me anything about fraud prevention, financial security, or
-                  suspicious activities.
-                </p>
-              </div>
-            )}
+      {/* Messages */}
+      <div className="flex-1 overflow-y-auto no-scrollbar px-6 py-6">
+        <div className="max-w-3xl mx-auto space-y-6">
 
-            {/* Message bubbles */}
-            {messages.map((message, index) => (
+          {messages.length === 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="flex flex-col items-center text-center pt-16 pb-8"
+            >
               <div
-                key={index}
-                className={`flex mb-4 ${
-                  message.isUser ? "justify-end" : "justify-start"
-                }`}
+                className="w-20 h-20 rounded-3xl flex items-center justify-center mb-7"
+                style={{ background: "rgba(59,130,246,0.06)", border: "1px solid rgba(59,130,246,0.14)", boxShadow: "0 0 60px rgba(59,130,246,0.08)" }}
               >
-                <div
-                  className={`flex ${
-                    message.isUser ? "flex-row-reverse" : "flex-row"
-                  } max-w-[80%] items-end`}
-                >
-                  {/* Avatar */}
-                  <div
-                    className={`flex-shrink-0 ${
-                      message.isUser ? "ml-2" : "mr-2"
-                    } mb-1`}
+                <ShieldCheck size={36} style={{ color: "#3b82f6" }} strokeWidth={1.6} />
+              </div>
+              <h2 className="text-[28px] font-bold mb-3" style={{ color: "rgba(255,255,255,0.85)", letterSpacing: "-0.03em" }}>
+                Security Scanner
+              </h2>
+              <p className="text-[14px] font-medium max-w-sm mb-10 leading-relaxed" style={{ color: "rgba(255,255,255,0.35)" }}>
+                Paste suspicious messages, emails, or proposals. The AI will instantly assess fraud risk using a 70B model.
+              </p>
+              <div className="flex flex-wrap justify-center gap-3">
+                {SUGGESTIONS.map((s, i) => (
+                  <button
+                    key={i}
+                    onClick={() => sendMessage(s)}
+                    className="flex items-center gap-2 px-4 py-2.5 rounded-full text-[13px] font-medium transition-all"
+                    style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.55)" }}
+                    onMouseEnter={e => { e.currentTarget.style.background = "rgba(255,255,255,0.08)"; e.currentTarget.style.color = "rgba(255,255,255,0.8)"; }}
+                    onMouseLeave={e => { e.currentTarget.style.background = "rgba(255,255,255,0.04)"; e.currentTarget.style.color = "rgba(255,255,255,0.55)"; }}
                   >
-                    <div
-                      className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                        message.isUser
-                          ? "bg-blue-600 text-white"
-                          : "bg-blue-100 text-blue-600"
-                      }`}
-                    >
-                      {message.isUser ? "U" : "AI"}
-                    </div>
-                  </div>
+                    <AlertTriangle size={13} style={{ color: "#f59e0b" }} />
+                    {s}
+                    <ChevronRight size={13} />
+                  </button>
+                ))}
+              </div>
+            </motion.div>
+          )}
 
-                  {/* Message content */}
-                  <div className="flex flex-col">
+          <AnimatePresence initial={false}>
+            {messages.map((msg, i) => {
+              const risk = msg.role === "bot" ? getRiskBadge(msg.content) : null;
+              return (
+                <motion.div
+                  key={i}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.3 }}
+                  className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
+                >
+                  {msg.role === "bot" && (
                     <div
-                      className={`p-3 rounded-2xl shadow-sm ${
-                        message.isUser
-                          ? "bg-blue-600 text-white rounded-br-none"
-                          : "bg-white border border-gray-200 text-gray-800 rounded-bl-none"
-                      }`}
+                      className="w-8 h-8 rounded-xl flex items-center justify-center mr-3 flex-shrink-0 mt-1"
+                      style={{ background: "rgba(59,130,246,0.1)", border: "1px solid rgba(59,130,246,0.2)" }}
                     >
-                      {message.isUser ? (
-                        <div className="whitespace-pre-wrap">
-                          {message.text}
-                        </div>
-                      ) : index === messages.length - 1 && currentResponse ? (
-                        <div
-                          className="whitespace-pre-wrap"
-                          dangerouslySetInnerHTML={{
-                            __html: formatText(displayedText),
-                          }}
-                        />
+                      <ShieldAlert size={15} style={{ color: "#3b82f6" }} />
+                    </div>
+                  )}
+                  <div className={`flex flex-col ${msg.role === "user" ? "items-end" : "items-start"} max-w-[82%]`}>
+                    {risk && (
+                      <div
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-bold uppercase tracking-[0.12em] mb-2"
+                        style={{ background: risk.bg, border: `1px solid ${risk.border}`, color: risk.color }}
+                      >
+                        <AlertTriangle size={11} /> {risk.label}
+                      </div>
+                    )}
+                    <div
+                      className="px-5 py-4 rounded-2xl text-[14px] leading-relaxed font-medium"
+                      style={
+                        msg.role === "user"
+                          ? { background: "rgba(59,130,246,0.12)", border: "1px solid rgba(59,130,246,0.22)", color: "rgba(255,255,255,0.88)", borderBottomRightRadius: "6px" }
+                          : { background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)", color: "rgba(255,255,255,0.82)", borderBottomLeftRadius: "6px" }
+                      }
+                    >
+                      {msg.role === "user" ? (
+                        <p className="whitespace-pre-wrap">{msg.content}</p>
                       ) : (
-                        <div
-                          className="whitespace-pre-wrap"
-                          dangerouslySetInnerHTML={{
-                            __html: formatText(message.text),
-                          }}
-                        />
+                        <MdText>{msg.content}</MdText>
                       )}
                     </div>
-
-                    {/* Timestamp */}
-                    <div
-                      className={`text-xs text-gray-500 mt-1 ${
-                        message.isUser ? "text-right" : "text-left"
-                      }`}
-                    >
-                      {message.timestamp}
-                    </div>
+                    <span className="text-[10px] mt-1.5 font-medium" style={{ color: "rgba(255,255,255,0.2)" }}>{msg.time}</span>
                   </div>
-                </div>
-              </div>
-            ))}
+                </motion.div>
+              );
+            })}
+          </AnimatePresence>
 
-            {/* Typing indicator */}
-            {(isLoading || currentResponse) && (
-              <div className="flex items-start mb-4">
-                <TypingIndicator />
+          {isLoading && (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex justify-start">
+              <div className="w-8 h-8 rounded-xl flex items-center justify-center mr-3 flex-shrink-0 mt-1" style={{ background: "rgba(59,130,246,0.1)", border: "1px solid rgba(59,130,246,0.2)" }}>
+                <ShieldAlert size={15} style={{ color: "#3b82f6" }} />
               </div>
-            )}
+              <div className="px-5 py-4 rounded-2xl flex items-center gap-1.5" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)", borderBottomLeftRadius: "6px" }}>
+                <span className="w-2 h-2 rounded-full animate-wave-1" style={{ background: "#3b82f6" }} />
+                <span className="w-2 h-2 rounded-full animate-wave-2" style={{ background: "#3b82f6", opacity: 0.7 }} />
+                <span className="w-2 h-2 rounded-full animate-wave-3" style={{ background: "#3b82f6", opacity: 0.5 }} />
+              </div>
+            </motion.div>
+          )}
 
-            {/* Bottom space for better UX */}
-            <div className="h-4"></div>
-          </div>
+          <div ref={bottomRef} />
         </div>
       </div>
 
-      {/* Input area */}
-      <form
-        onSubmit={handleSubmit}
-        className="flex-none p-4 border-t border-gray-200 bg-white shadow-lg"
+      {/* Input */}
+      <div
+        className="flex-shrink-0 px-6 py-4"
+        style={{ background: "rgba(6,6,14,0.65)", backdropFilter: "blur(24px)", borderTop: "1px solid rgba(255,255,255,0.055)" }}
       >
-        <div className="max-w-4xl mx-auto">
-          <div className="flex rounded-full border border-gray-300 overflow-hidden bg-white shadow-sm focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-blue-500">
+        <form onSubmit={handleSubmit} className="max-w-3xl mx-auto">
+          <div
+            className="flex items-center gap-3 p-2 rounded-2xl transition-all"
+            style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)" }}
+          >
             <input
               ref={inputRef}
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder="Type your message..."
-              className="flex-grow p-3 focus:outline-none px-4"
+              placeholder="Paste suspicious text to scan for scam patterns..."
+              className="flex-1 px-4 bg-transparent focus:outline-none text-[14px] font-medium py-2.5"
+              style={{ color: "rgba(255,255,255,0.85)", caretColor: "#3b82f6" }}
               disabled={isLoading}
             />
             <button
               type="submit"
-              className="bg-blue-600 text-white px-5 py-3 flex items-center justify-center disabled:bg-blue-400 transition-colors"
-              disabled={isLoading || !input.trim()}
+              disabled={!input.trim() || isLoading}
+              className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 transition-all"
+              style={{
+                background: input.trim() && !isLoading ? "#3b82f6" : "rgba(255,255,255,0.05)",
+                color: input.trim() && !isLoading ? "#fff" : "rgba(255,255,255,0.2)",
+              }}
             >
-              {isLoading ? (
-                <svg
-                  className="animate-spin h-5 w-5"
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                >
-                  <circle
-                    className="opacity-25"
-                    cx="12"
-                    cy="12"
-                    r="10"
-                    stroke="currentColor"
-                    strokeWidth="4"
-                  ></circle>
-                  <path
-                    className="opacity-75"
-                    fill="currentColor"
-                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                  ></path>
-                </svg>
-              ) : (
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="h-5 w-5"
-                  viewBox="0 0 20 20"
-                  fill="currentColor"
-                >
-                  <path
-                    fillRule="evenodd"
-                    d="M10.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L12.586 11H5a1 1 0 110-2h7.586l-2.293-2.293a1 1 0 010-1.414z"
-                    clipRule="evenodd"
-                  />
-                </svg>
-              )}
+              {isLoading ? <StopCircle size={17} className="animate-pulse" /> : <Send size={17} strokeWidth={2.5} />}
             </button>
           </div>
-         
-        </div>
-      </form>
+        </form>
+      </div>
     </div>
   );
 };

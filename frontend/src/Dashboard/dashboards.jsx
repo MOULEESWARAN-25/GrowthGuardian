@@ -1,570 +1,345 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import {
-  LineChart,
-  BarChart,
-  PieChart,
-  Pie,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-  Bar,
-  Cell,
+  PieChart, Pie, Tooltip, ResponsiveContainer, Cell,
+  AreaChart, Area, XAxis, YAxis, CartesianGrid,
 } from "recharts";
 import {
-  IndianRupeeIcon,
-  DollarSign,
-  ShoppingCart,
-  BarChart2,
-  CheckCircle,
-  Target,
-  ArrowDown,
-  ArrowUp,
+  IndianRupeeIcon, ShoppingCart, BarChart2, CheckCircle,
+  TrendingUp, TrendingDown, Calendar, ArrowUpRight, Target,
 } from "lucide-react";
+import AnimatedCard from "../components/AnimatedCard";
+
+const PIE_COLORS = ["var(--primary)", "#10b981", "#8b5cf6", "#f59e0b", "#3b82f6", "#6366f1"];
+
+const formatCurrency = (v) =>
+  new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(v);
+
+const formatShort = (v) => {
+  if (v >= 100000) return `₹${(v / 100000).toFixed(1)}L`;
+  if (v >= 1000) return `₹${(v / 1000).toFixed(0)}k`;
+  return `₹${v}`;
+};
+
+const getGreeting = () => {
+  const h = new Date().getHours();
+  if (h < 12) return "Good morning";
+  if (h < 17) return "Good afternoon";
+  return "Good evening";
+};
+
+
+
+const CustomTooltip = ({ active, payload, label }) => {
+  if (!active || !payload?.length) return null;
+  return (
+    <div style={{ background: "var(--popover)", border: "1px solid var(--border)", borderRadius: "14px", padding: "12px 16px", backdropFilter: "blur(12px)" }}>
+      <p style={{ color: "var(--muted-foreground)", fontSize: "11px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: 8 }}>{label}</p>
+      {payload.map((p, i) => (
+        <p key={i} style={{ color: p.color, fontSize: "13px", fontWeight: 700, marginBottom: 2 }}>
+          {p.name}: {formatCurrency(p.value)}
+        </p>
+      ))}
+    </div>
+  );
+};
 
 const FinancialDashboard = () => {
-  const [userData, setUserData] = useState({
-    name: "Alex Johnson",
-    income: 74700, // 900 * 83 (was 5200 * 83)
-    expenses: 53950, // 650 * 83 (was 3700 * 83)
-    budget: 62250, // 750 * 83 (was 4500 * 83)
-    savings: {
-      current: 166000, // 2000 * 83 (was 12500 * 83)
-      goal: 415000, // 5000 * 83 (was 20000 * 83)
-    },
-    familyMembers: [
-      { name: "Alex Johnson", savings: 1660, savingsGoal: 4150 }, // 2000, 5000 * 83
-      { name: "Taylor Johnson", savings: 1245, savingsGoal: 3320 }, // 1500, 4000 * 83
-      { name: "Riley Johnson", savings: 830, savingsGoal: 2075 }, // 1000, 2500 * 83
-      { name: "Jordan Johnson", savings: 622, savingsGoal: 1660 }, // 750, 2000 * 83
-    ],
-modules: [
-  { name: "Budgeting", progress: 50 },
-  { name: "Saving", progress: 25 },
-  { name: "Investing", progress: 0 },
-  { name: "Taxes", progress: 0 },
-  { name: "Credit", progress: 0 },
-  { name: "Financial Security", progress: 0 },
-],
-
-familyModuleProgress: [
-  {
-    member: "Alex Johnson",
-    modules: [
-      { name: "Budgeting", progress: 50 },
-      { name: "Saving", progress: 25 },
-      { name: "Investing", progress: 0 },
-      { name: "Taxes", progress: 0 },
-      { name: "Credit", progress: 0 },
-      { name: "Financial Security", progress: 0 },
-    ],
-  },
-  {
-    member: "Taylor Johnson",
-    modules: [
-      { name: "Budgeting", progress: 75 },
-      { name: "Saving", progress: 50 },
-      { name: "Investing", progress: 0 },
-      { name: "Taxes", progress: 0 },
-      { name: "Credit", progress: 25 },
-      { name: "Financial Security", progress: 0 },
-    ],
-  },
-  {
-    member: "Riley Johnson",
-    modules: [
-      { name: "Budgeting", progress: 25 },
-      { name: "Saving", progress: 0 },
-      { name: "Investing", progress: 0 },
-      { name: "Taxes", progress: 0 },
-      { name: "Credit", progress: 0 },
-      { name: "Financial Security", progress: 0 },
-    ],
-  },
-  {
-    member: "Jordan Johnson",
-    modules: [
-      { name: "Budgeting", progress: 0 },
-      { name: "Saving", progress: 0 },
-      { name: "Investing", progress: 0 },
-      { name: "Taxes", progress: 0 },
-      { name: "Credit", progress: 0 },
-      { name: "Financial Security", progress: 0 },
-    ],
-  },
-],
-  });
-  const [showCharts, setShowCharts] = useState(false);
-  const [activeCard, setActiveCard] = useState(null);
+  const [userData, setUserData] = useState(null);
   const [selectedFamilyMember, setSelectedFamilyMember] = useState(0);
 
-  useEffect(() => {
-    setTimeout(() => {
-      setShowCharts(true);
-    }, 300);
+  React.useEffect(() => {
+    fetch("http://localhost:5000/api/dashboard/karthik")
+      .then(r => r.json())
+      .then(d => {
+        if (!d.error) setUserData(d);
+      })
+      .catch(console.error);
   }, []);
 
-  const expenseData = [
-    { name: "Housing", value: 20750, color: "#3B82F6" }, // 250 * 83 (was 1500 * 83)
-    { name: "Food", value: 12450, color: "#60A5FA" }, // 150 * 83 (was 800 * 83)
-    { name: "Transport", value: 8300, color: "#93C5FD" }, // 100 * 83 (was 600 * 83)
-    { name: "Utilities", value: 6225, color: "#BFDBFE" }, // 75 * 83 (was 350 * 83)
-    { name: "Insurance", value: 4150, color: "#2563EB" }, // 50 * 83 (was 200 * 83)
-    { name: "Others", value: 2075, color: "#1D4ED8" }, // 25 * 83 (was 250 * 83)
-  ];
-
-  const monthlyData = [
-    { month: "Jan", income: 70550, expenses: 49800, savings: 20750 }, // 850, 600, 250 * 83
-    { month: "Feb", income: 72225, expenses: 51475, savings: 20750 }, // 870, 620, 250 * 83
-    { month: "Mar", income: 73060, expenses: 53950, savings: 19110 }, // 880, 650, 230 * 83
-    { month: "Apr", income: 74700, expenses: 53950, savings: 20750 }, // 900, 650, 250 * 83
-    { month: "May", income: 75535, expenses: 49800, savings: 25735 }, // 910, 600, 310 * 83
-    { month: "Jun", income: 76370, expenses: 55625, savings: 20745 }, // 920, 670, 250 * 83
-  ];
-
-  const savingsHistory = [
-    { month: "Jan", amount: 83000 }, // 1000 * 83 (was 8000 * 83)
-    { month: "Feb", amount: 103750 }, // 1250 * 83 (was 9500 * 83)
-    { month: "Mar", amount: 124500 }, // 1500 * 83 (was 10850 * 83)
-    { month: "Apr", amount: 166000 }, // 2000 * 83 (was 12500 * 83)
-    { month: "May", amount: 191750 }, // 2310 * 83 (was 14350 * 83)
-    { month: "Jun", amount: 207500 }, // 2500 * 83 (was 15750 * 83)
-  ];
-
-  // Format currency to INR
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat("en-IN", {
-      style: "currency",
-      currency: "INR",
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(amount);
-  };
-
-  const today = new Date();
-  const formattedDate = today.toLocaleDateString("en-US", {
-    weekday: "long",
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-  });
-
-  const remainingBudget = userData.budget - userData.expenses;
-  const budgetStatus = remainingBudget >= 0 ? "text-green-600" : "text-red-600";
-
-  const CustomTooltip = ({ active, payload, label }) => {
-    if (active && payload && payload.length) {
-      return (
-        <div className="bg-white p-4 rounded-lg shadow-lg border border-gray-100">
-          <p className="font-medium text-gray-700">{label}</p>
-          {payload.map((entry, index) => (
-            <p key={index} style={{ color: entry.color }} className="text-sm">
-              {entry.name}: {formatCurrency(entry.value)}
-            </p>
-          ))}
+  if (!userData) {
+    return (
+      <div className="w-full h-screen flex items-center justify-center">
+        <div className="animate-pulse flex flex-col items-center gap-4">
+          <div className="w-12 h-12 rounded-full border-4 border-t-primary border-r-primary border-transparent animate-spin" />
+          <p className="text-sm text-muted-foreground font-semibold">Loading real-time financial data...</p>
         </div>
-      );
-    }
-    return null;
-  };
+      </div>
+    );
+  }
+
+  const expenseData = userData.expenseDistribution;
+  const monthlyData = userData.monthlyCashFlow;
+  const remainingBudget = userData.budget - userData.expenses;
+  const KPI_CARDS = [
+    { title: "Total Income", value: userData.income, delta: "+5.4%", up: true, icon: IndianRupeeIcon },
+    { title: "Total Expenses", value: userData.expenses, delta: "+2.1%", up: false, icon: ShoppingCart },
+    { title: "Monthly Budget", value: userData.budget, delta: "Active", up: true, icon: BarChart2 },
+    { title: "Remaining Budget", value: remainingBudget, delta: remainingBudget >= 0 ? "On Track" : "Over", up: remainingBudget > 0, icon: CheckCircle },
+  ];
+  const savingsProgress = Math.round((userData.savings.current / userData.savings.goal) * 100);
+
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50">
-      <div className="container mx-auto px-4 py-8">
-        {/* Welcome Header */}
-        <div className="mb-8 bg-white rounded-3xl shadow-lg p-6 transform transition-all duration-500 hover:shadow-xl">
-          <div className="flex items-center justify-between">
+    <div className="w-full p-5 md:p-7 font-sans" style={{ background: "transparent" }}>
+      <div className="max-w-[1320px] mx-auto space-y-6">
+
+        {/* WELCOME HERO */}
+        <div className="relative overflow-hidden rounded-2xl border px-7 py-8"
+          style={{ background: "var(--card)", borderColor: "var(--border)" }}>
+          {/* Soft glow blobs — theme aware */}
+          <div className="absolute -top-16 -right-16 w-72 h-72 pointer-events-none rounded-full"
+            style={{ background: "radial-gradient(ellipse, color-mix(in oklch, var(--primary) 12%, transparent) 0%, transparent 70%)" }} />
+          <div className="absolute -bottom-16 left-10 w-48 h-48 pointer-events-none rounded-full"
+            style={{ background: "radial-gradient(ellipse, rgba(16,185,129,0.07) 0%, transparent 70%)" }} />
+
+          <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-5">
             <div>
-              <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-                Welcome back, {userData.name}
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full mb-4 text-[10px] font-bold uppercase tracking-[0.2em]"
+                style={{ background: "rgba(16,185,129,0.08)", border: "1px solid rgba(16,185,129,0.2)", color: "#10b981" }}>
+                <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: "#10b981" }} />
+                All Systems Nominal
+              </div>
+              <h1 className="text-3xl md:text-4xl font-bold tracking-tight mb-1.5" style={{ color: "var(--foreground)", letterSpacing: "-0.03em" }}>
+                {getGreeting()}, {userData.name}.
               </h1>
-              <p className="text-gray-500">{formattedDate}</p>
+              <p className="text-sm font-medium" style={{ color: "var(--muted-foreground)" }}>
+                Here's your financial overview for <strong>April 2026</strong>.
+              </p>
+            </div>
+            <div className="flex items-center gap-3 flex-shrink-0">
+              <div className="flex items-center gap-2 px-4 py-2.5 rounded-full text-[12px] font-semibold"
+                style={{ background: "var(--muted)", border: "1px solid var(--border)", color: "var(--muted-foreground)" }}>
+                <Calendar size={13} /> April 2026
+              </div>
+              <button 
+                onClick={() => {
+                  const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(userData, null, 2));
+                  const dlAnchorElem = document.createElement('a');
+                  dlAnchorElem.setAttribute("href",     dataStr     );
+                  dlAnchorElem.setAttribute("download", "growthguardian_report.json");
+                  dlAnchorElem.click();
+                }}
+                className="px-5 py-2.5 rounded-full text-[13px] font-bold tracking-wide transition-all hover:opacity-90 flex items-center gap-1.5"
+                style={{ background: "var(--primary)", color: "var(--primary-foreground)" }}>
+                <ArrowUpRight size={14} /> Export Report
+              </button>
             </div>
           </div>
         </div>
 
-        {/* Overview Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          {[
-            {
-              title: "Total Income",
-              value: userData.income,
-              icon: <IndianRupeeIcon size={20} />,
-              color: "from-blue-400 to-blue-500",
-            },
-            {
-              title: "Total Expenses",
-              value: userData.expenses,
-              icon: <ShoppingCart size={20} />,
-              color: "from-red-400 to-red-500",
-            },
-            {
-              title: "Monthly Budget",
-              value: userData.budget,
-              icon: <BarChart2 size={20} />,
-              color: "from-purple-400 to-purple-500",
-            },
-            {
-              title: "Remaining Budget",
-              value: remainingBudget,
-              icon: <CheckCircle size={20} />,
-              color:
-                remainingBudget >= 0
-                  ? "from-green-400 to-green-500"
-                  : "from-red-400 to-red-500",
-            },
-          ].map((card, index) => (
-            <div
-              key={index}
-              className={`bg-white rounded-2xl shadow-md pb-2 pt-5 px-3 py-3 transition-all duration-300 transform 
-                          ${
-                            activeCard === index
-                              ? "scale-105 shadow-xl"
-                              : "hover:scale-105 hover:shadow-lg"
-                          }`}
-              onMouseEnter={() => setActiveCard(index)}
-              onMouseLeave={() => setActiveCard(null)}
-            >
-              <div className="flex justify-between items-center mb-2">
-                <h2 className="text-sm text-gray-500 font-medium">
-                  {card.title}
-                </h2>
-                <div
-                  className={`text-white p-2 rounded-lg bg-gradient-to-r ${card.color}`}
-                >
-                  {card.icon}
+        {/* SAVINGS PROGRESS BAR */}
+        <div className="rounded-2xl border px-7 py-5" style={{ background: "var(--card)", borderColor: "var(--border)" }}>
+          <div className="flex justify-between items-center mb-3">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.14em]" style={{ color: "var(--muted-foreground)" }}>Annual Savings Goal</p>
+              <p className="text-lg font-bold mt-0.5" style={{ color: "var(--foreground)" }}>{formatCurrency(userData.savings.current)} <span className="text-sm font-normal" style={{ color: "var(--muted-foreground)" }}>/ {formatCurrency(userData.savings.goal)}</span></p>
+            </div>
+            <span className="text-3xl font-bold" style={{ color: "var(--primary)" }}>{savingsProgress}%</span>
+          </div>
+          <div className="w-full h-2.5 rounded-full overflow-hidden" style={{ background: "var(--muted)" }}>
+            <div className="h-full rounded-full transition-all duration-700" style={{ width: `${savingsProgress}%`, background: "var(--primary)" }} />
+          </div>
+        </div>
+
+        {/* KPI CARDS */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5">
+          {KPI_CARDS.map((card, idx) => (
+            <AnimatedCard key={idx} delay={0.08 * (idx + 1)} className="!p-6 !rounded-2xl"
+              style={{ background: "var(--card)", border: "1px solid var(--border)" }}>
+              <div className="flex items-start justify-between mb-5">
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center"
+                  style={{ background: "color-mix(in oklch, var(--primary) 12%, var(--background))", color: "var(--primary)", border: "1px solid color-mix(in oklch, var(--primary) 20%, transparent)" }}>
+                  <card.icon size={18} strokeWidth={2} />
+                </div>
+                <div className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold"
+                  style={{
+                    background: card.up ? "rgba(16,185,129,0.08)" : "color-mix(in oklch, var(--destructive) 10%, var(--background))",
+                    color: card.up ? "#10b981" : "var(--destructive)",
+                    border: `1px solid ${card.up ? "rgba(16,185,129,0.2)" : "color-mix(in oklch, var(--destructive) 25%, transparent)"}`,
+                  }}>
+                  {card.up ? <TrendingUp size={11} /> : <TrendingDown size={11} />}
+                  {card.delta}
                 </div>
               </div>
-              <p
-                className={`text-2xl font-bold ${
-                  card.title === "Remaining Budget"
-                    ? budgetStatus
-                    : "text-gray-800"
-                }`}
-              >
+              <p className="text-[10px] font-bold uppercase tracking-[0.14em] mb-2" style={{ color: "var(--muted-foreground)" }}>{card.title}</p>
+              <h3 className="text-[26px] font-bold tracking-tight leading-none" style={{ color: "var(--foreground)", letterSpacing: "-0.03em" }}>
                 {formatCurrency(card.value)}
-              </p>
-            </div>
+              </h3>
+            </AnimatedCard>
           ))}
         </div>
 
-        {/* Transactions and Expense Breakdown Section */}
-        <div
-          className={`grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8 transition-opacity duration-1000 ${
-            showCharts ? "opacity-100 " : "opacity-0"
-          }`}
-        >
-          {/* Recent Transactions */}
-          <div className="bg-white rounded-2xl shadow-md p-6 transition-all duration-300 hover:shadow-xl">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-bold text-gray-800">
-                Recent Transactions
-              </h2>
-              <div className="text-blue-600 text-xs font-medium px-2 py-1 rounded-full border border-blue-200 hover:bg-blue-50 cursor-pointer transition-all">
-                See All →
-              </div>
-            </div>
-            <div className="space-y-3">
-              {[
-                {
-                  name: "Grocery Shopping",
-                  date: "April 4, 2025",
-                  amount: -2075, // -25 * 83 (was -85 * 83)
-                },
-                {
-                  name: "Salary Deposit",
-                  date: "April 2, 2025",
-                  amount: 37350, // 450 * 83 (was 2600 * 83)
-                },
-                {
-                  name: "Utility Bills",
-                  date: "April 1, 2025",
-                  amount: -3320, // -40 * 83 (was -145 * 83)
-                },
-                {
-                  name: "Restaurant",
-                  date: "April 3, 2025",
-                  amount: -1245, // -15 * 83 (was -62 * 83)
-                },
-              ].map((transaction, index) => (
-                <div
-                  key={index}
-                  className="flex justify-between items-center border-b border-gray-100 pb-2 transition-all duration-200 hover:bg-gray-50 hover:pl-2 rounded-lg cursor-pointer"
-                >
-                  <div className="flex items-center">
-                    <div
-                      className={`w-8 h-8 rounded-full flex items-center justify-center mr-3 ${
-                        transaction.amount > 0 ? "bg-green-100" : "bg-red-100"
-                      }`}
-                    >
-                      {transaction.amount > 0 ? (
-                        <ArrowDown size={16} className="text-green-500" />
-                      ) : (
-                        <ArrowUp size={16} className="text-red-500" />
-                      )}
-                    </div>
-                    <div>
-                      <p className="text-gray-800 font-medium">
-                        {transaction.name}
-                      </p>
-                      <p className="text-xs text-gray-500">
-                        {transaction.date}
-                      </p>
-                    </div>
-                  </div>
-                  <p
-                    className={`font-medium ${
-                      transaction.amount > 0 ? "text-green-500" : "text-red-500"
-                    }`}
-                  >
-                    {transaction.amount > 0 ? "+" : ""}
-                    {formatCurrency(transaction.amount)}
-                  </p>
-                </div>
-              ))}
-            </div>
-            <button className="w-full mt-4 py-2 rounded-xl bg-gradient-to-r from-blue-500 to-indigo-600 text-white font-medium transition-all transform hover:translate-y-px hover:shadow-lg">
-              View All Transactions
-            </button>
-          </div>
+        {/* CHARTS ROW */}
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-5">
 
-          {/* Expense Breakdown Pie Chart */}
-          <div className="bg-white rounded-2xl shadow-md p-6 transition-all duration-300 hover:shadow-xl">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-bold text-gray-800">
-                Expense Breakdown
-              </h2>
-              <div className="bg-red-50 text-red-600 text-xs font-medium px-2 py-1 rounded-full">
-                April 2025
+          {/* Area Chart */}
+          <AnimatedCard delay={0.35} hover={false} className="lg:col-span-3 !p-6 !rounded-2xl"
+            style={{ background: "var(--card)", border: "1px solid var(--border)" }}>
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h2 className="text-[16px] font-bold tracking-tight" style={{ color: "var(--foreground)", letterSpacing: "-0.02em" }}>Cash Flow</h2>
+                <p className="text-[12px] mt-0.5" style={{ color: "var(--muted-foreground)" }}>Income vs expenses · 6 months</p>
+              </div>
+              <div className="flex items-center gap-4 text-[11px] font-semibold" style={{ color: "var(--muted-foreground)" }}>
+                <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full" style={{ background: "var(--primary)" }} />Income</span>
+                <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full" style={{ background: "var(--destructive)" }} />Expenses</span>
               </div>
             </div>
-            <div className="h-64">
+            <div className="h-[220px]">
               <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={expenseData}
-                    cx="50%"
-                    cy="50%"
-                    outerRadius={80}
-                    dataKey="value"
-                    nameKey="name"
-                    label={({ name, percent }) =>
-                      `${name}: ${(percent * 100).toFixed(0)}%`
-                    }
-                    animationBegin={300}
-                    animationDuration={1500}
-                  >
-                    {expenseData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Pie>
-                  <Tooltip formatter={(value) => formatCurrency(value)} />
-                  <Legend />
-                </PieChart>
+                <AreaChart data={monthlyData} margin={{ top: 8, right: 4, left: -22, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="gIncome" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="var(--primary)" stopOpacity={0.3} />
+                      <stop offset="95%" stopColor="var(--primary)" stopOpacity={0} />
+                    </linearGradient>
+                    <linearGradient id="gExpense" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#ef4444" stopOpacity={0.2} />
+                      <stop offset="95%" stopColor="#ef4444" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="2 4" vertical={false} stroke="var(--border)" />
+                  <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fill: "var(--muted-foreground)", fontSize: 10, fontWeight: 600 }} dy={10} />
+                  <YAxis axisLine={false} tickLine={false} tick={{ fill: "var(--muted-foreground)", fontSize: 10 }} tickFormatter={formatShort} />
+                  <Tooltip content={<CustomTooltip />} />
+                  <Area type="monotone" dataKey="income" name="Income" stroke="var(--primary)" strokeWidth={2.5} fillOpacity={1} fill="url(#gIncome)" dot={false} />
+                  <Area type="monotone" dataKey="expenses" name="Expenses" stroke="#ef4444" strokeWidth={2.5} fillOpacity={1} fill="url(#gExpense)" dot={false} />
+                </AreaChart>
               </ResponsiveContainer>
             </div>
-          </div>
-        </div>
+          </AnimatedCard>
 
-        {/* Family Member Savings Section */}
-        <div
-          className={`grid grid-cols-1 mb-8 transition-opacity duration-1000 ${
-            showCharts ? "opacity-100" : "opacity-0"
-          }`}
-          style={{ transitionDelay: "200ms" }}
-        >
-          <div className="bg-white rounded-2xl shadow-md p-6 transition-all duration-300 hover:shadow-xl">
-            <div className="flex justify-between items-center mb-6">
-              <div>
-                <h2 className="text-xl font-bold text-gray-800">
-                  Family Savings Progress
-                </h2>
-                <p className="text-gray-500 text-sm">
-                  Track savings goals for each family member
-                </p>
-              </div>
-              <div className="bg-blue-50 text-blue-600 text-xs font-medium px-2 py-1 rounded-full">
-                Family Plan
+          {/* Pie Chart */}
+          <AnimatedCard delay={0.42} hover={false} className="lg:col-span-2 !p-6 !rounded-2xl"
+            style={{ background: "var(--card)", border: "1px solid var(--border)" }}>
+            <h2 className="text-[16px] font-bold mb-4 tracking-tight" style={{ color: "var(--foreground)", letterSpacing: "-0.02em" }}>Expense Split</h2>
+            <div className="h-[170px] relative">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie data={expenseData} cx="50%" cy="50%" innerRadius={52} outerRadius={72} paddingAngle={3} dataKey="value" stroke="none" cornerRadius={5}>
+                    {expenseData.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
+                  </Pie>
+                  <Tooltip 
+                    formatter={(v) => formatCurrency(v)} 
+                    contentStyle={{ borderRadius: "12px", border: "1px solid var(--border)", background: "var(--popover)", color: "var(--popover-foreground)", fontSize: 13, fontWeight: 700 }} 
+                    itemStyle={{ color: "var(--foreground)" }}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                <div className="text-center">
+                  <p className="text-[9px] font-bold uppercase tracking-[0.2em]" style={{ color: "var(--muted-foreground)" }}>Total</p>
+                  <p className="text-[14px] font-bold" style={{ color: "var(--foreground)" }}>{formatShort(userData.expenses)}</p>
+                </div>
               </div>
             </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {userData.familyMembers.map((member, index) => (
-                <div
-                  key={index}
-                  className={`border rounded-xl p-4 transition-all duration-300 transform hover:shadow-md 
-                             ${
-                               index === 0
-                                 ? "border-blue-300 bg-blue-50"
-                                 : "border-gray-200"
-                             }`}
-                >
-                  <div className="flex items-center mb-3">
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-r from-blue-500 to-indigo-600 text-white flex items-center justify-center font-bold mr-3">
-                      {member.name
-                        .split(" ")
-                        .map((name) => name[0])
-                        .join("")}
-                    </div>
-                    <div>
-                      <h3 className="font-medium text-gray-800">
-                        {member.name}
-                      </h3>
-                      <div className="flex items-center text-sm">
-                        <span className="text-gray-500 mr-2">
-                          Savings Goal:
-                        </span>
-                        <span className="font-medium text-blue-600">
-                          {formatCurrency(member.savingsGoal)}
-                        </span>
-                      </div>
-                    </div>
+            <div className="mt-3 space-y-2">
+              {expenseData.slice(0, 4).map((item, i) => (
+                <div key={i} className="flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <span className="w-2 h-2 rounded-full" style={{ background: PIE_COLORS[i] }} />
+                    <span className="text-[12px]" style={{ color: "var(--muted-foreground)" }}>{item.name}</span>
                   </div>
-
-                  <div className="mt-2">
-                    <div className="flex justify-between items-center mb-1">
-                      <span className="text-sm text-gray-500">Progress</span>
-                      <span className="text-sm font-medium text-blue-600">
-                        {Math.round(
-                          (member.savings / member.savingsGoal) * 100
-                        )}
-                        %
-                      </span>
-                    </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2.5">
-                      <div
-                        className="bg-gradient-to-r from-blue-500 to-indigo-600 h-2.5 rounded-full"
-                        style={{
-                          width: `${
-                            (member.savings / member.savingsGoal) * 100
-                          }%`,
-                        }}
-                      ></div>
-                    </div>
-                    <div className="flex justify-between mt-1">
-                      <span className="text-xs text-gray-500">
-                        Current: {formatCurrency(member.savings)}
-                      </span>
-                      <span className="text-xs text-gray-500">
-                        Goal: {formatCurrency(member.savingsGoal)}
-                      </span>
-                    </div>
-                  </div>
+                  <span className="text-[12px] font-bold" style={{ color: "var(--foreground)" }}>{formatShort(item.value)}</span>
                 </div>
               ))}
             </div>
-          </div>
+          </AnimatedCard>
         </div>
 
-        {/* Financial Literacy Learning Modules */}
-        <div
-          className={`mb-8 transition-opacity duration-1000 ${
-            showCharts ? "opacity-100" : "opacity-0"
-          }`}
-          style={{ transitionDelay: "400ms" }}
-        >
-          <div className="bg-white rounded-2xl shadow-md p-6">
-            <div className="flex justify-between items-center mb-6">
-              <div>
-                <h2 className="text-xl font-bold text-gray-800">
-                  Family Financial Literacy Progress
-                </h2>
-                <p className="text-gray-500 text-sm">
-                  Track each family member's learning progress
-                </p>
-              </div>
-              <div className="flex space-x-2">
-                {userData.familyMembers.map((member, index) => (
-                  <button
-                    key={index}
-                    className={`px-3 py-1 text-xs font-medium rounded-full transition-all 
-                              ${
-                                selectedFamilyMember === index
-                                  ? "bg-blue-500 text-white"
-                                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                              }`}
-                    onClick={() => setSelectedFamilyMember(index)}
-                  >
-                    {member.name.split(" ")[0]}
+        {/* BOTTOM ROW */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+
+          {/* Family Status */}
+          <AnimatedCard delay={0.5} hover={false} className="!p-6 !rounded-2xl"
+            style={{ background: "var(--card)", border: "1px solid var(--border)" }}>
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="text-[16px] font-bold tracking-tight" style={{ color: "var(--foreground)", letterSpacing: "-0.02em" }}>Family Overview</h2>
+              <span className="px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-[0.14em]"
+                style={{ background: "color-mix(in oklch, var(--primary) 10%, var(--background))", color: "var(--primary)", border: "1px solid color-mix(in oklch, var(--primary) 20%, transparent)" }}>
+                Pro Plan
+              </span>
+            </div>
+            <div className="space-y-3">
+              {userData.familyMembers.map((member, i) => {
+                const pct = Math.round((member.savings / member.savingsGoal) * 100);
+                const colors = ["var(--primary)", "#10b981", "#f59e0b"];
+                return (
+                  <div key={i} className="p-4 rounded-xl" style={{ background: "var(--muted)", border: "1px solid var(--border)" }}>
+                    <div className="flex items-center justify-between mb-2.5">
+                      <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-full flex items-center justify-center font-bold text-[13px]"
+                          style={{ background: `color-mix(in oklch, ${colors[i]} 15%, var(--background))`, color: colors[i] }}>
+                          {member.name.charAt(0)}
+                        </div>
+                        <div>
+                          <p className="text-[13px] font-semibold" style={{ color: "var(--foreground)" }}>{member.name}</p>
+                          <p className="text-[11px]" style={{ color: "var(--muted-foreground)" }}>Goal: {formatCurrency(member.savingsGoal)}</p>
+                        </div>
+                      </div>
+                      <span className="text-[17px] font-bold" style={{ color: colors[i] }}>{pct}%</span>
+                    </div>
+                    <div className="w-full h-1.5 rounded-full overflow-hidden" style={{ background: "var(--border)" }}>
+                      <div className="h-full rounded-full" style={{ width: `${pct}%`, background: colors[i], transition: "width 0.7s ease" }} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </AnimatedCard>
+
+          {/* Education Path */}
+          <AnimatedCard delay={0.58} hover={false} className="!p-6 !rounded-2xl"
+            style={{ background: "var(--card)", border: "1px solid var(--border)" }}>
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="text-[16px] font-bold tracking-tight" style={{ color: "var(--foreground)", letterSpacing: "-0.02em" }}>Learning Path</h2>
+              <div className="flex gap-1 p-1 rounded-xl" style={{ background: "var(--muted)", border: "1px solid var(--border)" }}>
+                {userData.familyModuleProgress.map((f, i) => (
+                  <button key={i} onClick={() => setSelectedFamilyMember(i)}
+                    className="px-3 py-1.5 rounded-lg text-[11px] font-semibold transition-all"
+                    style={{
+                      background: selectedFamilyMember === i ? "var(--primary)" : "transparent",
+                      color: selectedFamilyMember === i ? "var(--primary-foreground)" : "var(--muted-foreground)",
+                    }}>
+                    {f.member.split(" ")[0]}
                   </button>
                 ))}
               </div>
             </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              {userData.familyModuleProgress[selectedFamilyMember].modules.map(
-                (module, index) => (
-                  <div
-                    key={index}
-                    className={`bg-white rounded-2xl border shadow-sm p-5 transition-all duration-300 transform hover:shadow-md hover:border-blue-300 cursor-pointer 
-                             ${
-                               module.progress > 0
-                                 ? "border-l-4 border-blue-500"
-                                 : "border"
-                             }`}
-                    style={{ transitionDelay: `${index * 50}ms` }}
-                  >
-                    <div className="flex items-center justify-between mb-2">
-                      <h3 className="font-medium text-gray-800">
-                        {module.name}
-                      </h3>
-                      {module.progress === 0 ? (
-                        <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-full">
-                          Not Started
-                        </span>
-                      ) : module.progress === 100 ? (
-                        <span className="text-xs bg-green-100 text-green-600 px-2 py-1 rounded-full">
-                          Completed
-                        </span>
-                      ) : (
-                        <span className="text-xs bg-blue-100 text-blue-600 px-2 py-1 rounded-full">
-                          In Progress
-                        </span>
-                      )}
-                    </div>
-                    <div className="flex items-center mt-2">
-                      <div className="flex-1">
-                        <div className="w-full bg-gray-200 rounded-full h-2">
-                          <div
-                            className={`${
-                              module.progress > 0
-                                ? "bg-gradient-to-r from-blue-500 to-indigo-600"
-                                : "bg-gray-300"
-                            } h-2 rounded-full transition-all duration-1000 ease-out`}
-                            style={{ width: `${module.progress}%` }}
-                          ></div>
-                        </div>
+            <div className="space-y-3">
+              {userData.familyModuleProgress[selectedFamilyMember].modules.map((mod, i) => {
+                const done = mod.progress === 100;
+                const active = mod.progress > 0 && mod.progress < 100;
+                const statusColor = done ? "#10b981" : active ? "var(--primary)" : "var(--muted-foreground)";
+                return (
+                  <div key={i} className="flex items-center justify-between p-4 rounded-xl cursor-pointer transition-all"
+                    style={{ background: "var(--muted)", border: "1px solid var(--border)" }}
+                    onMouseEnter={e => e.currentTarget.style.borderColor = "color-mix(in oklch, var(--primary) 30%, transparent)"}
+                    onMouseLeave={e => e.currentTarget.style.borderColor = "var(--border)"}>
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-lg flex items-center justify-center"
+                        style={{ background: `color-mix(in oklch, ${statusColor} 12%, var(--background))`, color: statusColor }}>
+                        <Target size={14} strokeWidth={2} />
                       </div>
-                      <span className="ml-2 text-sm text-gray-500">
-                        {module.progress}%
-                      </span>
+                      <div>
+                        <p className="text-[13px] font-semibold" style={{ color: "var(--foreground)" }}>{mod.name}</p>
+                        <p className="text-[11px]" style={{ color: statusColor }}>
+                          {done ? "Completed ✓" : active ? `${mod.progress}% progress` : "Not started"}
+                        </p>
+                      </div>
                     </div>
-                    <button
-                      className={`mt-3 w-full text-center text-xs font-medium py-1 rounded-lg 
-                                     ${
-                                       module.progress === 0
-                                         ? "bg-blue-500 text-white hover:bg-blue-600"
-                                         : module.progress === 100
-                                         ? "border border-gray-200 text-gray-500 hover:bg-gray-50"
-                                         : "bg-blue-100 text-blue-600 hover:bg-blue-200"
-                                     } 
-                                     transition-all`}
-                    >
-                      {module.progress === 0
-                        ? "Start Module"
-                        : module.progress === 100
-                        ? "Review"
-                        : "Continue"}
-                    </button>
+                    {active && (
+                      <div className="w-20 h-1.5 rounded-full overflow-hidden" style={{ background: "var(--border)" }}>
+                        <div className="h-full rounded-full" style={{ width: `${mod.progress}%`, background: "var(--primary)" }} />
+                      </div>
+                    )}
                   </div>
-                )
-              )}
+                );
+              })}
             </div>
-          </div>
+          </AnimatedCard>
         </div>
+
       </div>
     </div>
   );

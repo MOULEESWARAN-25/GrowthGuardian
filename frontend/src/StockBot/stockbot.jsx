@@ -1,472 +1,275 @@
-import React, { useState, useRef } from "react";
-import { Send, Paperclip, Trash, Loader2, X } from "lucide-react";
+import React, { useState, useRef, useEffect } from "react";
+import { Send, BarChart2, TrendingUp, RefreshCw, Sparkles, ChevronRight } from "lucide-react";
+// eslint-disable-next-line no-unused-vars
+import { motion, AnimatePresence } from "framer-motion";
 import axios from "axios";
 
-export default function ScamPrevention() {
-  const [userPrompt, setUserPrompt] = useState("");
-  const [files, setFiles] = useState([]);
-  const [response, setResponse] = useState(null);
+// Lightweight markdown → HTML renderer (avoids ReactMarkdown crash)
+const MdText = ({ children }) => {
+  const lines = (children || "").split("\n");
+  return (
+    <div className="space-y-1">
+      {lines.map((line, i) => {
+        if (!line.trim()) return <div key={i} className="h-2" />;
+        const heading = line.match(/^(#{1,3})\s+(.*)/);
+        if (heading) return <p key={i} className="font-bold text-[15px] mt-2 mb-0.5" dangerouslySetInnerHTML={{ __html: inlineFormat(heading[2]) }} />;
+        const bullet = line.match(/^[-*]\s+(.*)/); 
+        if (bullet) return <p key={i} className="flex gap-2"><span>•</span><span dangerouslySetInnerHTML={{ __html: inlineFormat(bullet[1]) }} /></p>;
+        const numbered = line.match(/^\d+\.\s+(.*)/);
+        if (numbered) return <p key={i} className="flex gap-2"><span>{line.split(/\s/)[0]}</span><span dangerouslySetInnerHTML={{ __html: inlineFormat(numbered[1]) }} /></p>;
+        return <p key={i} dangerouslySetInnerHTML={{ __html: inlineFormat(line) }} />;
+      })}
+    </div>
+  );
+};
+
+const inlineFormat = (text) =>
+  text
+    .replace(/`([^`]+)`/g, '<code class="px-1 py-0.5 rounded text-[12px]" style="background:rgba(255,255,255,0.08);font-family:monospace">$1</code>')
+    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*([^*]+)\*/g, '<em>$1</em>');
+
+const SUGGESTIONS = [
+  "Analyze Reliance Industries stock trend",
+  "Best SIP mutual funds for 2026",
+  "Explain why Nifty 50 dropped today",
+  "Compare growth vs value investing",
+];
+
+export default function StockBot() {
+  const [messages, setMessages] = useState([]);
+  const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [hasSubmitted, setHasSubmitted] = useState(false);
-  const [showModal, setShowModal] = useState(false);
-  const fileInputRef = useRef(null);
+  const bottomRef = useRef(null);
+  const inputRef = useRef(null);
 
-  // Function to convert files to base64 for API submission
-  const fileToBase64 = (file) => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
-      reader.onload = () => resolve(reader.result.split(",")[1]);
-      reader.onerror = (error) => reject(error);
-    });
-  };
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, isLoading]);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (userPrompt.trim() === "" && files.length === 0) return;
+  useEffect(() => {
+    if (!isLoading) inputRef.current?.focus();
+  }, [isLoading]);
 
+  const sendMessage = async (text) => {
+    if (!text.trim() || isLoading) return;
+    const userMsg = { role: "user", content: text, time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) };
+    setMessages((prev) => [...prev, userMsg]);
+    setInput("");
     setIsLoading(true);
-    setHasSubmitted(true);
 
     try {
-      let response;
-
-      if (userPrompt.trim() !== "") {
-        // Text submission
-        const payload_text = { prompt: userPrompt };
-
-        console.log("Text Request Payload:", payload_text);
-        localStorage.setItem(
-          "scamPreventionPayload",
-          JSON.stringify(payload_text)
-        );
-
-        response = await axios.post(
-          "https://hackit-fin-tech-backend.vercel.app/api/fundAnalyzer",
-          payload_text,
-          { headers: { "Content-Type": "application/json" } }
-        );
-      } else if (files.length > 0) {
-        // File submission
-        const filePromises = files.map(async (file) => {
-          const base64Content = await fileToBase64(file);
-          return {
-            name: file.name,
-            type: file.type,
-            content: base64Content,
-          };
-        });
-
-        const processedFiles = await Promise.all(filePromises);
-        const payload_pdf = { files: processedFiles };
-
-        console.log("File Request Payload:", payload_pdf);
-
-        response = await axios.post(
-          "https://your-api-endpoint.com/api/scamDetectorFile",
-          payload_pdf,
-          { headers: { "Content-Type": "application/json" } }
-        );
-      }
-
-      // Console log the API response
-      console.log("API Response Data:", response.data);
-
-      // Format and process the response
-      const formattedResponse = formatResponseData(response.data);
-
-      setResponse({
-        content: formattedResponse,
-        jsonResponse: response.data,
-        timestamp: new Date().toLocaleTimeString(),
+      const payload = { prompt: text + " Focus heavily on stock markets, trading, and fund advising." };
+      const res = await axios.post("http://localhost:5000/api/chat", payload, {
+        headers: { "Content-Type": "application/json" },
       });
-
-      // Show modal with response
-      setShowModal(true);
-    } catch (error) {
-      console.error("Error processing request:", error);
-
-      setResponse({
-        content: `Error occurred: ${error.message}. In a production environment, proper error handling would be implemented.`,
-        errorDetails: error,
-        timestamp: new Date().toLocaleTimeString(),
-      });
-
-      // Show modal even for errors
-      setShowModal(true);
+      const botMsg = {
+        role: "bot",
+        content: res.data.response || "No response received.",
+        time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      };
+      setMessages((prev) => [...prev, botMsg]);
+    } catch {
+      setMessages((prev) => [
+        ...prev,
+        { role: "bot", content: "⚠️ Could not reach the AI engine. Please ensure the backend is running on `localhost:5000`.", time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) },
+      ]);
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Function to format the entire response data
-  const formatResponseData = (data) => {
-    // Extract relevant information or use the raw response
-    const responseText = data.response || "No response data received";
-
-    // Parse the response text to identify sections like Category, Summary, etc.
-    const formattedSections = parseResponseSections(responseText);
-
-    return formattedSections;
-  };
-
-  // Function to parse the response into structured sections
-  const parseResponseSections = (text) => {
-    const sections = {};
-
-    // Try to extract sections using regex patterns
-    const categoryMatch = text.match(/\*\*Category:\*\*\s*(.*?)(?=\*\*|$)/s);
-    const summaryMatch = text.match(/\*\*Summary:\*\*\s*(.*?)(?=\*\*|$)/s);
-    const analysisMatch = text.match(/\*\*Analysis:\*\*\s*(.*?)(?=\*\*|$)/s);
-    const recommendationsMatch = text.match(
-      /\*\*Recommendations:\*\*\s*(.*?)(?=\*\*|$)/s
-    );
-
-    // Extract checkmark or cross indicators
-    let categoryIndicator = "❓";
-    if (categoryMatch && categoryMatch[1]) {
-      if (categoryMatch[1].toLowerCase().includes("legitimate")) {
-        categoryIndicator = "✅";
-      } else if (
-        categoryMatch[1].toLowerCase().includes("scam") ||
-        categoryMatch[1].toLowerCase().includes("fraud")
-      ) {
-        categoryIndicator = "❌";
-      }
-    }
-
-    // Format each section
-    if (categoryMatch && categoryMatch[1]) {
-      sections.category = {
-        indicator: categoryIndicator,
-        text: categoryMatch[1].trim(),
-      };
-    }
-
-    if (summaryMatch && summaryMatch[1]) {
-      sections.summary = summaryMatch[1].trim();
-    }
-
-    if (analysisMatch && analysisMatch[1]) {
-      sections.analysis = analysisMatch[1].trim();
-    }
-
-    if (recommendationsMatch && recommendationsMatch[1]) {
-      sections.recommendations = recommendationsMatch[1].trim();
-    }
-
-    // If we couldn't parse structured sections, use the original text
-    if (Object.keys(sections).length === 0) {
-      return { rawText: text };
-    }
-
-    return sections;
-  };
-
-  const handleFileUpload = (e) => {
-    const uploadedFiles = Array.from(e.target.files);
-    setFiles((prev) => [...prev, ...uploadedFiles]);
-  };
-
-  const removeFile = (fileToRemove) => {
-    setFiles(files.filter((file) => file !== fileToRemove));
-  };
-
-  const resetChat = () => {
-    setUserPrompt("");
-    setFiles([]);
-    setResponse(null);
-    setHasSubmitted(false);
-    setShowModal(false);
-  };
-
-  const closeModal = () => {
-    setShowModal(false);
-  };
-
-  const triggerFileInput = () => {
-    fileInputRef.current.click();
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    sendMessage(input);
   };
 
   return (
-    <div className="flex flex-col h-screen bg-gradient-to-br from-blue-50 to-white text-blue-900">
+    <div className="flex flex-col h-full" style={{ background: "transparent" }}>
+
       {/* Header */}
-      <header className="border-b border-blue-100 p-6">
-        <div className="max-w-3xl mx-auto flex justify-between items-center">
-          <div className="flex items-center">
-            <div className="h-10 w-10 rounded-full bg-blue-600 flex items-center justify-center mr-3">
-              <span className="text-xl font-bold text-white">AI</span>
-            </div>
-            <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-blue-800 bg-clip-text text-transparent">
-              Intelligence Assistant
-            </h1>
+      <div
+        className="flex-shrink-0 flex items-center justify-between px-6 py-4 z-10"
+        style={{
+          background: "rgba(6,6,14,0.65)",
+          backdropFilter: "blur(24px)",
+          borderBottom: "1px solid rgba(255,255,255,0.055)",
+        }}
+      >
+        <div className="flex items-center gap-3.5">
+          <div
+            className="w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0"
+            style={{ background: "rgba(16,185,129,0.1)", border: "1px solid rgba(16,185,129,0.2)", boxShadow: "0 0 20px rgba(16,185,129,0.12)" }}
+          >
+            <TrendingUp size={22} style={{ color: "#10b981" }} strokeWidth={2} />
           </div>
-
-          {hasSubmitted && (
-            <button
-              onClick={resetChat}
-              className="px-4 py-2 text-sm bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-full transition-colors"
-            >
-              New Question
-            </button>
-          )}
+          <div>
+            <h1 className="text-[17px] font-bold tracking-tight" style={{ color: "rgba(255,255,255,0.9)", letterSpacing: "-0.02em" }}>
+              Stock <span style={{ color: "#10b981" }}>Intelligence</span>
+            </h1>
+            <p className="text-[11px] font-bold uppercase tracking-[0.18em] flex items-center gap-1.5" style={{ color: "rgba(255,255,255,0.3)" }}>
+              <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: "#10b981", boxShadow: "0 0 6px #10b981" }} />
+              Market Analysis Core
+            </p>
+          </div>
         </div>
-      </header>
+        {messages.length > 0 && (
+          <button
+            onClick={() => setMessages([])}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-[12px] font-semibold transition-all"
+            style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.45)" }}
+            onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.08)"}
+            onMouseLeave={e => e.currentTarget.style.background = "rgba(255,255,255,0.04)"}
+          >
+            <RefreshCw size={13} /> New Chat
+          </button>
+        )}
+      </div>
 
-      <div className="flex-1 overflow-hidden flex flex-col">
-        <div className="max-w-3xl w-full mx-auto flex-1 flex flex-col p-6">
-          {!hasSubmitted && (
-            <div className="flex-1 flex flex-col items-center justify-center text-center px-4 mb-10">
-              <div className="h-24 w-24 rounded-full bg-gradient-to-r from-blue-500 to-blue-600 flex items-center justify-center mb-6">
-                <span className="text-4xl text-white">✨</span>
+      {/* Messages */}
+      <div className="flex-1 overflow-y-auto no-scrollbar px-6 py-6">
+        <div className="max-w-3xl mx-auto space-y-6">
+
+          {/* Empty state */}
+          {messages.length === 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="flex flex-col items-center text-center pt-16 pb-8"
+            >
+              <div
+                className="w-20 h-20 rounded-3xl flex items-center justify-center mb-7"
+                style={{ background: "rgba(16,185,129,0.06)", border: "1px solid rgba(16,185,129,0.14)", boxShadow: "0 0 60px rgba(16,185,129,0.08)" }}
+              >
+                <TrendingUp size={36} style={{ color: "#10b981" }} strokeWidth={1.6} />
               </div>
-              <h2 className="text-2xl font-bold mb-3 text-blue-800">
-                How can I assist you today?
+              <h2
+                className="text-[28px] font-bold mb-3"
+                style={{ color: "rgba(255,255,255,0.85)", letterSpacing: "-0.03em" }}
+              >
+                Stock Market AI
               </h2>
-              <p className="text-blue-600 max-w-md">
-                Ask me anything or upload documents for analysis. I'll provide a
-                concise, informative response.
+              <p className="text-[14px] font-medium max-w-sm mb-10 leading-relaxed" style={{ color: "rgba(255,255,255,0.35)" }}>
+                Ask anything about equities, mutual funds, or trading strategies. Powered by a 70B parameter model.
               </p>
-            </div>
+              {/* Suggestion chips */}
+              <div className="flex flex-wrap justify-center gap-3">
+                {SUGGESTIONS.map((s, i) => (
+                  <button
+                    key={i}
+                    onClick={() => sendMessage(s)}
+                    className="flex items-center gap-2 px-4 py-2.5 rounded-full text-[13px] font-medium transition-all"
+                    style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.55)" }}
+                    onMouseEnter={e => { e.currentTarget.style.background = "rgba(255,255,255,0.08)"; e.currentTarget.style.color = "rgba(255,255,255,0.8)"; }}
+                    onMouseLeave={e => { e.currentTarget.style.background = "rgba(255,255,255,0.04)"; e.currentTarget.style.color = "rgba(255,255,255,0.55)"; }}
+                  >
+                    <Sparkles size={13} style={{ color: "#10b981" }} />
+                    {s}
+                    <ChevronRight size={13} />
+                  </button>
+                ))}
+              </div>
+            </motion.div>
           )}
 
-          {hasSubmitted && (
-            <div className="flex-1 overflow-y-auto mb-6">
-              {/* User query recap */}
-              <div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-100">
-                <div className="text-sm text-blue-500 mb-1">Your query:</div>
-                <div className="font-medium text-blue-800">{userPrompt}</div>
-                {files.length > 0 && (
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    {files.map((file, index) => (
-                      <div
-                        key={index}
-                        className="inline-flex items-center bg-blue-100 rounded-md px-2 py-1"
-                      >
-                        <span className="text-xs text-blue-700">
-                          {file.name}
-                        </span>
-                      </div>
-                    ))}
+          {/* Message thread */}
+          <AnimatePresence initial={false}>
+            {messages.map((msg, i) => (
+              <motion.div
+                key={i}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3 }}
+                className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
+              >
+                {msg.role === "bot" && (
+                  <div
+                    className="w-8 h-8 rounded-xl flex items-center justify-center mr-3 flex-shrink-0 mt-1"
+                    style={{ background: "rgba(16,185,129,0.1)", border: "1px solid rgba(16,185,129,0.2)" }}
+                  >
+                    <TrendingUp size={15} style={{ color: "#10b981" }} />
                   </div>
                 )}
-              </div>
-
-              {/* Loading state */}
-              {isLoading && (
-                <div className="flex flex-col items-center justify-center h-40">
-                  <Loader2 className="h-10 w-10 text-blue-500 animate-spin mb-4" />
-                  <p className="text-blue-600">Processing request...</p>
-                  <p className="text-xs text-blue-400 mt-2">
-                    Check console for request and response logs
-                  </p>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Input area - shown only if not submitted or if reset */}
-          {!hasSubmitted && (
-            <div className="bg-white rounded-xl p-4 border border-blue-100 shadow-lg">
-              {/* File preview area */}
-              {files.length > 0 && (
-                <div className="mb-4 flex flex-wrap gap-2">
-                  {files.map((file, index) => (
-                    <div
-                      key={index}
-                      className="flex items-center bg-blue-50 rounded-md px-3 py-2 group"
-                    >
-                      <span className="text-sm text-blue-700 mr-2">
-                        {file.name}
-                      </span>
-                      <button
-                        onClick={() => removeFile(file)}
-                        className="text-blue-400 hover:text-red-500 transition-colors"
-                      >
-                        <Trash size={16} />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* Input form */}
-              <form onSubmit={handleSubmit} className="flex items-end gap-3">
-                <div className="flex-1 relative">
-                  <textarea
-                    className="w-full bg-blue-50 border border-blue-100 rounded-lg py-4 pl-4 pr-12 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-blue-800 placeholder-blue-400 min-h-[100px]"
-                    placeholder="Ask anything..."
-                    rows={3}
-                    value={userPrompt}
-                    onChange={(e) => setUserPrompt(e.target.value)}
-                  />
-                  <button
-                    type="button"
-                    className="absolute right-3 bottom-3 text-blue-400 hover:text-blue-600 transition-colors"
-                    onClick={triggerFileInput}
+                <div className={`flex flex-col ${msg.role === "user" ? "items-end" : "items-start"} max-w-[82%]`}>
+                  <div
+                    className="px-5 py-4 rounded-2xl text-[14px] leading-relaxed font-medium"
+                    style={
+                      msg.role === "user"
+                        ? { background: "rgba(99,102,241,0.15)", border: "1px solid rgba(99,102,241,0.25)", color: "rgba(255,255,255,0.88)", borderBottomRightRadius: "6px" }
+                        : { background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)", color: "rgba(255,255,255,0.82)", borderBottomLeftRadius: "6px" }
+                    }
                   >
-                    <Paperclip size={20} />
-                  </button>
-                  <input
-                    type="file"
-                    ref={fileInputRef}
-                    onChange={handleFileUpload}
-                    multiple
-                    className="hidden"
-                  />
+                    {msg.role === "user" ? (
+                      <p>{msg.content}</p>
+                    ) : (
+                      <MdText>{msg.content}</MdText>
+                    )}
+                  </div>
+                  <span className="text-[10px] mt-1.5 font-medium" style={{ color: "rgba(255,255,255,0.2)" }}>{msg.time}</span>
                 </div>
-                <button
-                  type="submit"
-                  className="bg-gradient-to-r from-blue-500 to-blue-700 text-white rounded-lg p-4 hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 disabled:opacity-50 transition-all"
-                  disabled={userPrompt.trim() === "" && files.length === 0}
-                >
-                  <Send size={20} />
-                </button>
-              </form>
-            </div>
+              </motion.div>
+            ))}
+          </AnimatePresence>
+
+          {/* Typing indicator */}
+          {isLoading && (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex justify-start">
+              <div
+                className="w-8 h-8 rounded-xl flex items-center justify-center mr-3 flex-shrink-0 mt-1"
+                style={{ background: "rgba(16,185,129,0.1)", border: "1px solid rgba(16,185,129,0.2)" }}
+              >
+                <TrendingUp size={15} style={{ color: "#10b981" }} />
+              </div>
+              <div
+                className="px-5 py-4 rounded-2xl flex items-center gap-1.5"
+                style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)", borderBottomLeftRadius: "6px" }}
+              >
+                <span className="w-2 h-2 rounded-full animate-wave-1" style={{ background: "#10b981" }} />
+                <span className="w-2 h-2 rounded-full animate-wave-2" style={{ background: "#10b981", opacity: 0.7 }} />
+                <span className="w-2 h-2 rounded-full animate-wave-3" style={{ background: "#10b981", opacity: 0.5 }} />
+              </div>
+            </motion.div>
           )}
+
+          <div ref={bottomRef} />
         </div>
       </div>
 
-      {/* Modal Popup for Response */}
-      {showModal && response && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col animate-fadeIn">
-            {/* Modal Header */}
-            <div className="flex items-center justify-between p-4 border-b border-blue-100 bg-gradient-to-r from-blue-50 to-white">
-              <div className="flex items-center">
-                <div className="h-8 w-8 rounded-full bg-blue-600 flex items-center justify-center mr-3">
-                  <span className="text-sm font-bold text-white">AI</span>
-                </div>
-                <div>
-                  <h3 className="font-bold text-blue-800">
-                    Assistant Response
-                  </h3>
-                  <div className="text-xs text-blue-500">
-                    {response.timestamp}
-                  </div>
-                </div>
-              </div>
-              <button
-                onClick={closeModal}
-                className="h-8 w-8 rounded-full bg-blue-100 hover:bg-blue-200 flex items-center justify-center text-blue-600 transition-colors"
-              >
-                <X size={18} />
-              </button>
-            </div>
-
-            {/* Modal Body */}
-            <div className="flex-1 overflow-y-auto p-6">
-              <div className="prose max-w-none text-blue-800">
-                {response.content.rawText ? (
-                  <p className="whitespace-pre-line">
-                    {response.content.rawText}
-                  </p>
-                ) : (
-                  <div className="space-y-4">
-                    {/* Category Section */}
-                    {response.content.category && (
-                      <div className="flex items-start">
-                        <div className="font-semibold text-blue-800 min-w-[100px]">
-                          Category:
-                        </div>
-                        <div className="flex items-center">
-                          <span className="mr-2">
-                            {response.content.category.indicator}
-                          </span>
-                          <span
-                            className={`font-medium ${
-                              response.content.category.indicator === "✅"
-                                ? "text-green-600"
-                                : response.content.category.indicator === "❌"
-                                ? "text-red-600"
-                                : "text-blue-700"
-                            }`}
-                          >
-                            {response.content.category.text}
-                          </span>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Summary Section */}
-                    {response.content.summary && (
-                      <div className="space-y-2">
-                        <div className="font-semibold text-blue-800">
-                          Summary:
-                        </div>
-                        <div className="pl-4">{response.content.summary}</div>
-                      </div>
-                    )}
-
-                    {/* Analysis Section */}
-                    {response.content.analysis && (
-                      <div className="space-y-2">
-                        <div className="font-semibold text-blue-800">
-                          Analysis:
-                        </div>
-                        <div className="pl-4 whitespace-pre-line">
-                          {response.content.analysis}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Recommendations Section */}
-                    {response.content.recommendations && (
-                      <div className="space-y-2">
-                        <div className="font-semibold text-blue-800">
-                          Recommendations:
-                        </div>
-                        <div className="pl-4">
-                          {response.content.recommendations
-                            .split("-")
-                            .filter((item) => item.trim())
-                            .map((item, index) => (
-                              <div
-                                key={index}
-                                className="flex items-start mb-2"
-                              >
-                                <span className="mr-2">•</span>
-                                <span>{item.trim()}</span>
-                              </div>
-                            ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Modal Footer */}
-            <div className="border-t border-blue-100 p-4 bg-blue-50 flex justify-end">
-              <button
-                onClick={closeModal}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-              >
-                Close
-              </button>
-            </div>
+      {/* Input */}
+      <div
+        className="flex-shrink-0 px-6 py-4"
+        style={{ background: "rgba(6,6,14,0.65)", backdropFilter: "blur(24px)", borderTop: "1px solid rgba(255,255,255,0.055)" }}
+      >
+        <form onSubmit={handleSubmit} className="max-w-3xl mx-auto">
+          <div
+            className="flex items-center gap-3 p-2 rounded-2xl transition-all"
+            style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)" }}
+            onFocus={() => {}}
+          >
+            <input
+              ref={inputRef}
+              type="text"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder="Ask about stocks, funds, trading strategies..."
+              className="flex-1 px-4 bg-transparent focus:outline-none text-[14px] font-medium py-2.5"
+              style={{ color: "rgba(255,255,255,0.85)", caretColor: "#10b981" }}
+              disabled={isLoading}
+            />
+            <button
+              type="submit"
+              disabled={!input.trim() || isLoading}
+              className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 transition-all"
+              style={{
+                background: input.trim() && !isLoading ? "#10b981" : "rgba(255,255,255,0.05)",
+                color: input.trim() && !isLoading ? "#04040a" : "rgba(255,255,255,0.2)",
+              }}
+            >
+              <Send size={17} strokeWidth={2.5} />
+            </button>
           </div>
-        </div>
-      )}
-
-      {/* CSS for animation */}
-      <style jsx>{`
-        @keyframes fadeIn {
-          from {
-            opacity: 0;
-            transform: translateY(-10px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-        .animate-fadeIn {
-          animation: fadeIn 0.3s ease-out forwards;
-        }
-      `}</style>
+        </form>
+      </div>
     </div>
   );
 }
