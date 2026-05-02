@@ -43,6 +43,24 @@ const CustomTooltip = ({ active, payload, label }) => {
   );
 };
 
+const DashboardSkeleton = () => (
+  <div className="w-full p-5 md:p-7 font-sans animate-pulse">
+    <div className="max-w-[1320px] mx-auto space-y-6">
+      <div className="rounded-2xl border px-7 py-8 bg-muted/30 border-muted/50 h-[140px]" />
+      <div className="rounded-2xl border px-7 py-5 bg-muted/30 border-muted/50 h-[80px]" />
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5">
+        {[1, 2, 3, 4].map((i) => (
+          <div key={i} className="rounded-2xl border p-6 bg-muted/30 border-muted/50 h-[150px]" />
+        ))}
+      </div>
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-5">
+        <div className="lg:col-span-3 rounded-2xl border p-6 bg-muted/30 border-muted/50 h-[320px]" />
+        <div className="lg:col-span-2 rounded-2xl border p-6 bg-muted/30 border-muted/50 h-[320px]" />
+      </div>
+    </div>
+  </div>
+);
+
 const FinancialDashboard = () => {
   const [userData, setUserData] = useState(null);
   const [selectedFamilyMember, setSelectedFamilyMember] = useState(0);
@@ -57,14 +75,7 @@ const FinancialDashboard = () => {
   }, []);
 
   if (!userData) {
-    return (
-      <div className="w-full h-screen flex items-center justify-center">
-        <div className="animate-pulse flex flex-col items-center gap-4">
-          <div className="w-12 h-12 rounded-full border-4 border-t-primary border-r-primary border-transparent animate-spin" />
-          <p className="text-sm text-muted-foreground font-semibold">Loading real-time financial data...</p>
-        </div>
-      </div>
-    );
+    return <DashboardSkeleton />;
   }
 
   const expenseData = userData.expenseDistribution;
