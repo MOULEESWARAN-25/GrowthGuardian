@@ -75,7 +75,30 @@ const validateInputPrompt = (req, res, next) => {
   next();
 };
 
-app.post('/api/chat', validateInputPrompt, async (req, res) => {
+// In-memory rate limiting middleware
+const rateLimitsMap = {};
+const RATE_LIMIT_WINDOW = 60 * 1000; // 1 minute
+const MAX_REQUESTS = 30; // max 30 requests per minute
+
+const simpleRateLimiter = (req, res, next) => {
+  const ip = req.ip || req.headers['x-forwarded-for'] || 'unknown';
+  const now = Date.now();
+  
+  if (!rateLimitsMap[ip]) {
+    rateLimitsMap[ip] = [];
+  }
+  
+  rateLimitsMap[ip] = rateLimitsMap[ip].filter(timestamp => now - timestamp < RATE_LIMIT_WINDOW);
+  
+  if (rateLimitsMap[ip].length >= MAX_REQUESTS) {
+    return res.status(429).json({ error: "Too many requests. Please try again in a minute." });
+  }
+  
+  rateLimitsMap[ip].push(now);
+  next();
+};
+
+app.post('/api/chat', simpleRateLimiter, validateInputPrompt, async (req, res) => {
   try {
     const { prompt } = req.body;
     
@@ -101,7 +124,7 @@ app.post('/api/chat', validateInputPrompt, async (req, res) => {
   }
 });
 
-app.post('/api/scam-detect', validateInputPrompt, async (req, res) => {
+app.post('/api/scam-detect', simpleRateLimiter, validateInputPrompt, async (req, res) => {
   try {
     const { prompt } = req.body;
     
