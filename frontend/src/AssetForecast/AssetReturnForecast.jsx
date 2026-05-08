@@ -32,10 +32,31 @@ export default function AssetPredictionTool() {
   }, [prediction]);
 
   const generatePrediction = async () => {
-    if (!assetType || !assetName || !interestRate || !inflationRate || !forecastYears) { alert('Please fill all fields'); return; }
+    if (!assetType || !assetName || !interestRate || !inflationRate || !forecastYears) { 
+      alert('Please fill all fields'); 
+      return; 
+    }
+    
+    const rate = parseFloat(interestRate);
+    const inf = parseFloat(inflationRate);
+    const years = parseInt(forecastYears);
+
+    if (isNaN(rate) || rate < 0 || rate > 100) {
+      alert("Interest rate must be a number between 0% and 100%");
+      return;
+    }
+    if (isNaN(inf) || inf < 0 || inf > 100) {
+      alert("Inflation rate must be a number between 0% and 100%");
+      return;
+    }
+    if (isNaN(years) || years < 1 || years > 30) {
+      alert("Forecast period must be a number between 1 and 30 years");
+      return;
+    }
+
     setIsLoading(true); setError(null);
     const assetSymbol = assetName.split(' - ')[0];
-    const requestPayload = { asset_type: assetType, asset_name: assetSymbol, interest_rate: parseFloat(interestRate) || 0, inflation_rate: parseFloat(inflationRate) || 0, forecast_years: parseInt(forecastYears) || 2 };
+    const requestPayload = { asset_type: assetType, asset_name: assetSymbol, interest_rate: rate, inflation_rate: inf, forecast_years: years };
     try {
       const predRes = await fetch(`${API_URL}/predict`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(requestPayload) });
       if (!predRes.ok) { const e = await predRes.json().catch(() => null); throw new Error(e?.error || `Error: ${predRes.status}`); }
